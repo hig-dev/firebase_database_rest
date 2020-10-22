@@ -4,6 +4,7 @@ import 'package:eventsource/eventsource.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:http/http.dart';
 import 'package:logging/logging.dart';
+import 'package:path/path.dart';
 
 import 'filter.dart';
 import 'models/db_error.dart';
@@ -17,6 +18,11 @@ enum PrintMode {
   silent,
 }
 
+enum FormatMode {
+  normal,
+  export,
+}
+
 enum WriteSizeLimit {
   tiny,
   small,
@@ -25,46 +31,46 @@ enum WriteSizeLimit {
   unlimited,
 }
 
-class FirebaseRealtimeDatabaseApi {
-  static const dynamic serverTimeStamp = {".sv": "timestamp"};
+class RestApi {
+  static const loggingTag = "firebase_database_rest.RestApi";
 
-  final Client _client;
-  final String _database;
+  static const serverTimeStamp = {".sv": "timestamp"};
+
   final Logger _logger;
-  final List<String> _path;
-  final String _idToken;
-  final Timeout _timeout;
-  final WriteSizeLimit _writeSizeLimit;
 
-  FirebaseRealtimeDatabaseApi({
-    @required Client client,
-    @required String database,
-    @required Logger logger,
-    String idToken,
-    List<String> path = const <String>[],
-    Timeout timeout = const Timeout.min(15),
-    WriteSizeLimit writeSizeLimit = WriteSizeLimit.unlimited,
-  })  : _client = client,
-        _database = database,
-        _logger = logger,
-        _idToken = idToken,
-        _path = path,
-        _timeout = timeout,
-        _writeSizeLimit = writeSizeLimit;
+  final Client client;
+  final String database;
+  final String basePath;
+
+  String idToken;
+  Timeout timeout;
+  WriteSizeLimit writeSizeLimit;
+
+  RestApi({
+    @required this.client,
+    @required this.database,
+    this.basePath = "",
+    this.idToken,
+    this.timeout = const Timeout.min(15),
+    this.writeSizeLimit = WriteSizeLimit.unlimited,
+    String loggingCategory = loggingTag,
+  }) : _logger = loggingCategory != null ? Logger(loggingCategory) : null;
 
   Future<DbResponse> get({
-    List<String> path,
-    PrintMode mode = PrintMode.normal,
+    String path,
+    PrintMode printMode = PrintMode.normal,
+    FormatMode formatMode = FormatMode.normal,
     bool shallow = false,
     Filter filter,
     bool eTag = false,
   }) async {
     _logger.fine("Sending get request...");
-    final response = await _client.get(
+    final response = await client.get(
       _buildUri(
         path,
         filter: filter,
-        mode: mode,
+        printMode: printMode,
+        formatMode: formatMode,
         shallow: shallow,
       ),
       headers: _buildHeaders(
@@ -76,15 +82,15 @@ class FirebaseRealtimeDatabaseApi {
 
   Future<DbResponse> post(
     Map<String, dynamic> body, {
-    List<String> path,
-    PrintMode mode = PrintMode.normal,
+    String path,
+    PrintMode printMode = PrintMode.normal,
     bool eTag = false,
   }) async {
     _logger.fine("Sending post request...");
-    final response = await _client.post(
+    final response = await client.post(
       _buildUri(
         path,
-        mode: mode,
+        printMode: printMode,
       ),
       body: json.encode(body),
       headers: _buildHeaders(
@@ -97,16 +103,16 @@ class FirebaseRealtimeDatabaseApi {
 
   Future<DbResponse> put(
     Map<String, dynamic> body, {
-    List<String> path,
-    PrintMode mode = PrintMode.normal,
+    String path,
+    PrintMode printMode = PrintMode.normal,
     bool eTag = false,
     String ifMatch,
   }) async {
     _logger.fine("Sending put request...");
-    final response = await _client.put(
+    final response = await client.put(
       _buildUri(
         path,
-        mode: mode,
+        printMode: printMode,
       ),
       body: json.encode(body),
       headers: _buildHeaders(
@@ -119,16 +125,16 @@ class FirebaseRealtimeDatabaseApi {
   }
 
   Future<DbResponse> delete({
-    List<String> path,
-    PrintMode mode = PrintMode.normal,
+    String path,
+    PrintMode printMode = PrintMode.normal,
     bool eTag = false,
     String ifMatch,
   }) async {
     _logger.fine("Sending delete request...");
-    final response = await _client.delete(
+    final response = await client.delete(
       _buildUri(
         path,
-        mode: mode,
+        printMode: printMode,
       ),
       headers: _buildHeaders(
         eTag: eTag,
@@ -139,8 +145,9 @@ class FirebaseRealtimeDatabaseApi {
   }
 
   Stream<StreamEvent> stream({
-    List<String> path,
-    PrintMode mode = PrintMode.normal,
+    String path,
+    PrintMode printMode = PrintMode.normal,
+    FormatMode formatMode = FormatMode.normal,
     bool shallow = false,
     Filter filter,
   }) async* {
@@ -149,13 +156,14 @@ class FirebaseRealtimeDatabaseApi {
       _buildUri(
         path,
         filter: filter,
-        mode: mode,
+        printMode: printMode,
+        formatMode: formatMode,
         shallow: shallow,
       ),
       headers: _buildHeaders(
         accept: "text/event-stream",
       ),
-      client: _client,
+      client: client,
     );
 
     await for (final event in source) {
@@ -163,11 +171,13 @@ class FirebaseRealtimeDatabaseApi {
       switch (event.event) {
         case "put":
           yield StreamEventPut.fromJson(
-              json.decode(event.data) as Map<String, dynamic>);
+            json.decode(event.data) as Map<String, dynamic>,
+          );
           break;
         case "patch":
           yield StreamEventPatch.fromJson(
-              json.decode(event.data) as Map<String, dynamic>);
+            json.decode(event.data) as Map<String, dynamic>,
+          );
           break;
         case "keep-alive":
           break; // no-op
@@ -181,31 +191,27 @@ class FirebaseRealtimeDatabaseApi {
   }
 
   Uri _buildUri(
-    List<String> path, {
+    String path, {
     Filter filter,
-    PrintMode mode,
+    PrintMode printMode,
+    FormatMode formatMode,
     bool shallow,
   }) {
-    final fullPath = _path + path;
-    if (fullPath.isEmpty) {
-      throw null;
-    }
-    fullPath.last += ".json";
-
     final uri = Uri(
       scheme: "https",
-      host: "$_database.firebaseio.com",
-      pathSegments: fullPath,
+      host: "$database.firebaseio.com",
+      path: posix.normalize("$basePath/$path.json"),
       queryParameters: <String, dynamic>{
-        if (_idToken != null) "auth": _idToken,
-        "timeout": _timeout.serialize(),
-        "writeSizeLimit": _writeSizeLimit.toString(),
-        if (mode != PrintMode.normal) "print": mode.toString(),
+        if (idToken != null) "auth": idToken,
+        "timeout": timeout.serialize(),
+        "writeSizeLimit": writeSizeLimit.toString(),
+        if (printMode != PrintMode.normal) "print": printMode.toString(),
+        if (formatMode != FormatMode.normal) "format": formatMode.toString(),
         if (shallow != null) "shallow": shallow.toString(),
-        ...?filter?.query(),
+        ...?filter?.filters,
       },
     );
-    _logger.fine("Building request URI as: ${uri.toString()}");
+    _logger.finer("> Building request URI as: ${uri.toString()}");
     return uri;
   }
 
@@ -221,7 +227,7 @@ class FirebaseRealtimeDatabaseApi {
       if (eTag) "X-Firebase-ETag": "true",
       if (ifMatch != null) "if-match": ifMatch,
     };
-    _logger.fine("Building request headers as: ${headers.toString()}");
+    _logger.finer("> Building request headers as: ${headers.toString()}");
     return headers;
   }
 

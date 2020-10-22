@@ -14,6 +14,7 @@ dependencies:
   logging: ^0.11.4
   firebase_auth_rest: ^1.0.0
   eventsource: ^0.2.3
+  path: ^1.7.0
 
 dev_dependencies:
   test: ^1.15.3
