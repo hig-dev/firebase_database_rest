@@ -1,6 +1,5 @@
 import 'dart:convert';
 
-import 'package:eventsource/eventsource.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:http/http.dart';
 import 'package:logging/logging.dart';
@@ -11,6 +10,7 @@ import 'models/db_error.dart';
 import 'models/db_response.dart';
 import 'models/stream_event.dart';
 import 'models/timeout.dart';
+import 'stream/event_source.dart';
 
 enum PrintMode {
   normal,
@@ -152,7 +152,7 @@ class RestApi {
     Filter filter,
   }) async* {
     _logger.fine("Sending stream request...");
-    final source = await EventSource.connect(
+    final source = await client.stream(
       _buildUri(
         path,
         filter: filter,
@@ -163,7 +163,6 @@ class RestApi {
       headers: _buildHeaders(
         accept: "text/event-stream",
       ),
-      client: client,
     );
 
     await for (final event in source) {
@@ -185,6 +184,9 @@ class RestApi {
           throw DbError(error: event.data);
         case "auth_revoked":
           yield const StreamEvent.authRevoked();
+          break;
+        default:
+          // TODO log failure
           break;
       }
     }
