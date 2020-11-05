@@ -11,8 +11,8 @@ abstract class Timeout implements _$Timeout {
   const factory Timeout.min(int duration) = _TimeoutMin;
 
   String serialize() => when(
-        ms: (duration) => "${duration}ms",
-        s: (duration) => "${duration}s",
-        min: (duration) => "${duration}min",
+        ms: (duration) => '${duration}ms',
+        s: (duration) => '${duration}s',
+        min: (duration) => '${duration}min',
       );
 }

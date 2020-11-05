@@ -14,39 +14,39 @@ class EventStreamDecoder implements StreamTransformer<String, ServerSentEvent> {
       if (line.isEmpty) {
         if (data.isNotEmpty) {
           yield ServerSentEvent(
-            event: eventType ?? "message",
-            data: data.join("\n"),
+            event: eventType ?? 'message',
+            data: data.join('\n'),
             lastEventId: lastEventId,
           );
         }
         eventType = null;
         data.clear();
-      } else if (line.startsWith(":")) {
+      } else if (line.startsWith(':')) {
         continue;
       } else {
-        final colonIndex = line.indexOf(":");
-        var field = "";
-        var value = "";
+        final colonIndex = line.indexOf(':');
+        var field = '';
+        var value = '';
         if (colonIndex != -1) {
           field = line.substring(0, colonIndex);
           value = line.substring(colonIndex + 1);
-          if (value.startsWith(" ")) {
+          if (value.startsWith(' ')) {
             value = value.substring(1);
           }
         } else {
           field = line;
         }
         switch (field) {
-          case "event":
+          case 'event':
             eventType = value.isNotEmpty ? value : null;
             break;
-          case "data":
+          case 'data':
             data.add(value);
             break;
-          case "id":
+          case 'id':
             lastEventId = value.isNotEmpty ? value : null;
             break;
-          // case "retry":  Not implemented
+          // case 'retry':  Not implemented
           default:
             break;
         }
@@ -55,8 +55,8 @@ class EventStreamDecoder implements StreamTransformer<String, ServerSentEvent> {
 
     if (data.isNotEmpty) {
       yield ServerSentEvent(
-        event: eventType ?? "message",
-        data: data.join("\n"),
+        event: eventType ?? 'message',
+        data: data.join('\n'),
         lastEventId: lastEventId,
       );
     }

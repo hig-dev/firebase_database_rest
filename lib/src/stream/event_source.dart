@@ -23,18 +23,17 @@ class EventSource extends Stream<ServerSentEvent> {
     Function onError,
     void Function() onDone,
     bool cancelOnError,
-  }) {
-    return response.stream
-        .transform(utf8.decoder)
-        .transform(const LineSplitter())
-        .transform(const EventStreamDecoder())
-        .listen(
-          onData,
-          onError: onError,
-          onDone: onDone,
-          cancelOnError: cancelOnError,
-        );
-  }
+  }) =>
+      response.stream
+          .transform(utf8.decoder)
+          .transform(const LineSplitter())
+          .transform(const EventStreamDecoder())
+          .listen(
+            onData,
+            onError: onError,
+            onDone: onDone,
+            cancelOnError: cancelOnError,
+          );
 }
 
 extension EventSourceClientX on Client {
@@ -43,14 +42,14 @@ extension EventSourceClientX on Client {
     Map<String, String> headers,
     String lastEventID,
   }) async {
-    final request = Request("GET", url);
+    final request = Request('GET', url);
     if (headers != null) {
       request.headers.addAll(headers);
     }
-    request.headers["Accept"] = "text/event-stream";
-    request.headers["Cache-Control"] = "no-cache";
+    request.headers['Accept'] = 'text/event-stream';
+    request.headers['Cache-Control'] = 'no-cache';
     if (lastEventID != null) {
-      request.headers["Last-Event-ID"] = lastEventID;
+      request.headers['Last-Event-ID'] = lastEventID;
     }
 
     final response = await send(request);

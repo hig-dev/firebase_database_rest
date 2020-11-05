@@ -6,21 +6,43 @@ import 'package:logging/logging.dart';
 import 'package:path/path.dart';
 
 import 'filter.dart';
-import 'models/db_error.dart';
+import 'models/db_exception.dart';
 import 'models/db_response.dart';
 import 'models/stream_event.dart';
 import 'models/timeout.dart';
 import 'stream/event_source.dart';
 
 enum PrintMode {
-  normal,
   pretty,
   silent,
 }
 
+extension PrintModeX on PrintMode {
+  String get value {
+    switch (this) {
+      case PrintMode.pretty:
+        return 'pretty';
+      case PrintMode.silent:
+        return 'silent';
+      default:
+        return null;
+    }
+  }
+}
+
 enum FormatMode {
-  normal,
   export,
+}
+
+extension FormatModeX on FormatMode {
+  String get value {
+    switch (this) {
+      case FormatMode.export:
+        return 'export';
+      default:
+        return null;
+    }
+  }
 }
 
 enum WriteSizeLimit {
@@ -31,10 +53,29 @@ enum WriteSizeLimit {
   unlimited,
 }
 
-class RestApi {
-  static const loggingTag = "firebase_database_rest.RestApi";
+extension WriteSizeLimitX on WriteSizeLimit {
+  String get value {
+    switch (this) {
+      case WriteSizeLimit.tiny:
+        return 'tiny';
+      case WriteSizeLimit.small:
+        return 'small';
+      case WriteSizeLimit.medium:
+        return 'medium';
+      case WriteSizeLimit.large:
+        return 'large';
+      case WriteSizeLimit.unlimited:
+        return 'unlimited';
+      default:
+        return null;
+    }
+  }
+}
 
-  static const serverTimeStamp = {".sv": "timestamp"};
+class RestApi {
+  static const loggingTag = 'firebase_database_rest.RestApi';
+
+  static const serverTimeStamp = {'.sv': 'timestamp'};
 
   final Logger _logger;
 
@@ -49,22 +90,22 @@ class RestApi {
   RestApi({
     @required this.client,
     @required this.database,
-    this.basePath = "",
+    this.basePath = '',
     this.idToken,
-    this.timeout = const Timeout.min(15),
-    this.writeSizeLimit = WriteSizeLimit.unlimited,
+    this.timeout,
+    this.writeSizeLimit,
     String loggingCategory = loggingTag,
   }) : _logger = loggingCategory != null ? Logger(loggingCategory) : null;
 
   Future<DbResponse> get({
     String path,
-    PrintMode printMode = PrintMode.normal,
-    FormatMode formatMode = FormatMode.normal,
-    bool shallow = false,
+    PrintMode printMode,
+    FormatMode formatMode,
+    bool shallow,
     Filter filter,
     bool eTag = false,
   }) async {
-    _logger.fine("Sending get request...");
+    _logger?.fine('Sending get request...');
     final response = await client.get(
       _buildUri(
         path,
@@ -83,10 +124,10 @@ class RestApi {
   Future<DbResponse> post(
     Map<String, dynamic> body, {
     String path,
-    PrintMode printMode = PrintMode.normal,
+    PrintMode printMode,
     bool eTag = false,
   }) async {
-    _logger.fine("Sending post request...");
+    _logger?.fine('Sending post request...');
     final response = await client.post(
       _buildUri(
         path,
@@ -104,11 +145,11 @@ class RestApi {
   Future<DbResponse> put(
     Map<String, dynamic> body, {
     String path,
-    PrintMode printMode = PrintMode.normal,
+    PrintMode printMode,
     bool eTag = false,
     String ifMatch,
   }) async {
-    _logger.fine("Sending put request...");
+    _logger?.fine('Sending put request...');
     final response = await client.put(
       _buildUri(
         path,
@@ -126,11 +167,11 @@ class RestApi {
 
   Future<DbResponse> delete({
     String path,
-    PrintMode printMode = PrintMode.normal,
+    PrintMode printMode,
     bool eTag = false,
     String ifMatch,
   }) async {
-    _logger.fine("Sending delete request...");
+    _logger?.fine('Sending delete request...');
     final response = await client.delete(
       _buildUri(
         path,
@@ -146,12 +187,12 @@ class RestApi {
 
   Stream<StreamEvent> stream({
     String path,
-    PrintMode printMode = PrintMode.normal,
-    FormatMode formatMode = FormatMode.normal,
+    PrintMode printMode,
+    FormatMode formatMode,
     bool shallow = false,
     Filter filter,
   }) async* {
-    _logger.fine("Sending stream request...");
+    _logger?.fine('Sending stream request...');
     final source = await client.stream(
       _buildUri(
         path,
@@ -160,33 +201,30 @@ class RestApi {
         formatMode: formatMode,
         shallow: shallow,
       ),
-      headers: _buildHeaders(
-        accept: "text/event-stream",
-      ),
     );
 
     await for (final event in source) {
-      _logger.fine("Received event of type: ${event.event}");
+      _logger?.fine('Received event of type: ${event.event}');
       switch (event.event) {
-        case "put":
+        case 'put':
           yield StreamEventPut.fromJson(
             json.decode(event.data) as Map<String, dynamic>,
           );
           break;
-        case "patch":
+        case 'patch':
           yield StreamEventPatch.fromJson(
             json.decode(event.data) as Map<String, dynamic>,
           );
           break;
-        case "keep-alive":
+        case 'keep-alive':
           break; // no-op
-        case "cancel":
-          throw DbError(error: event.data);
-        case "auth_revoked":
+        case 'cancel':
+          throw DbException(error: event.data);
+        case 'auth_revoked':
           yield const StreamEvent.authRevoked();
           break;
         default:
-          // TODO log failure
+          _logger?.warning('Ignoring unsupported stream event: ${event.event}');
           break;
       }
     }
@@ -200,20 +238,22 @@ class RestApi {
     bool shallow,
   }) {
     final uri = Uri(
-      scheme: "https",
-      host: "$database.firebaseio.com",
-      path: posix.normalize("$basePath/$path.json"),
+      scheme: 'https',
+      host: '$database.firebaseio.com',
+      path: posix.normalize(
+        path != null ? '$basePath/$path.json' : '$basePath.json',
+      ),
       queryParameters: <String, dynamic>{
-        if (idToken != null) "auth": idToken,
-        "timeout": timeout.serialize(),
-        "writeSizeLimit": writeSizeLimit.toString(),
-        if (printMode != PrintMode.normal) "print": printMode.toString(),
-        if (formatMode != FormatMode.normal) "format": formatMode.toString(),
-        if (shallow != null) "shallow": shallow.toString(),
+        if (idToken != null) 'auth': idToken,
+        if (timeout != null) 'timeout': timeout.serialize(),
+        if (writeSizeLimit != null) 'writeSizeLimit': writeSizeLimit.value,
+        if (printMode != null) 'print': printMode.value,
+        if (formatMode != null) 'format': formatMode.value,
+        if (shallow != null) 'shallow': shallow.toString(),
         ...?filter?.filters,
       },
     );
-    _logger.finer("> Building request URI as: ${uri.toString()}");
+    _logger?.finer('> Building request URI as: ${uri.toString()}');
     return uri;
   }
 
@@ -224,12 +264,12 @@ class RestApi {
     String accept,
   }) {
     final headers = {
-      "Accept": accept ?? "application/json",
-      if (hasBody) "Content-Type": "application/json",
-      if (eTag) "X-Firebase-ETag": "true",
-      if (ifMatch != null) "if-match": ifMatch,
+      'Accept': accept ?? 'application/json',
+      if (hasBody) 'Content-Type': 'application/json',
+      if (eTag) 'X-Firebase-ETag': 'true',
+      if (ifMatch != null) 'if-match': ifMatch,
     };
-    _logger.finer("> Building request headers as: ${headers.toString()}");
+    _logger?.finer('> Building request headers as: ${headers.toString()}');
     return headers;
   }
 
@@ -237,11 +277,11 @@ class RestApi {
     Response response,
     bool eTag,
   ) {
-    final tag = eTag ? response.headers["ETag"] : null;
+    final tag = eTag ? response.headers['ETag'] : null;
     if (response.statusCode >= 300) {
-      throw DbError.fromJson(
+      throw DbException.fromJson(
         json.decode(response.body) as Map<String, dynamic>,
-      );
+      ).copyWith(statusCode: response.statusCode);
     } else if (response.statusCode == 204) {
       return DbResponse(
         data: null,

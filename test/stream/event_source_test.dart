@@ -19,33 +19,33 @@ void main() {
     when(mockResponse.statusCode).thenReturn(200);
   });
 
-  group("EventSource", () {
+  group('EventSource', () {
     EventSource sut;
 
     setUp(() {
       sut = EventSource(mockResponse);
     });
 
-    test("should create transformed event source stream", () async {
+    test('should create transformed event source stream', () async {
       when(mockResponse.stream).thenAnswer((i) {
-        const data = """
+        const data = '''
 event: ev1
 data: data1
 
 data: data2
-""";
+''';
         return ByteStream(Stream.fromIterable([utf8.encode(data)]));
       });
 
       final result = await sut.toList();
       expect(result, const [
-        ServerSentEvent(data: "data1", event: "ev1"),
-        ServerSentEvent(data: "data2"),
+        ServerSentEvent(data: 'data1', event: 'ev1'),
+        ServerSentEvent(data: 'data2'),
       ]);
     });
   });
 
-  group("stream extension", () {
+  group('stream extension', () {
     final mockClient = MockClient();
 
     setUp(() {
@@ -54,55 +54,53 @@ data: data2
       when(mockClient.send(any)).thenAnswer((i) async => mockResponse);
     });
 
-    test("calls send on client with parameters", () async {
-      final url = Uri.https("example.com", "/test");
+    test('calls send on client with parameters', () async {
+      final url = Uri.https('example.com', '/test');
       await mockClient.stream(
         url,
         headers: const {
-          "a": "1",
-          "b": "2",
-          "Accept": "application/json",
+          'a': '1',
+          'b': '2',
+          'Accept': 'application/json',
         },
       );
 
       final request = verify(
         mockClient.send(captureAny),
       ).captured.single as Request;
-      expect(request.method, "GET");
+      expect(request.method, 'GET');
       expect(request.url, url);
       expect(request.persistentConnection, true);
       expect(request.headers, const {
-        "a": "1",
-        "b": "2",
-        "Accept": "text/event-stream",
-        "Cache-Control": "no-cache",
+        'a': '1',
+        'b': '2',
+        'Accept': 'text/event-stream',
+        'Cache-Control': 'no-cache',
       });
       expect(request.contentLength, 0);
     });
 
-    test("sets last event id header if given", () async {
-      await mockClient.stream(Uri(), lastEventID: "42");
+    test('sets last event id header if given', () async {
+      await mockClient.stream(Uri(), lastEventID: '42');
 
       final request = verify(
         mockClient.send(captureAny),
       ).captured.single as Request;
       expect(request.headers, const {
-        "Accept": "text/event-stream",
-        "Cache-Control": "no-cache",
-        "Last-Event-ID": "42",
+        'Accept': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Last-Event-ID': '42',
       });
     });
 
-    test("Returns event source with reponse", () async {
+    test('Returns event source with reponse', () async {
       final res = await mockClient.stream(Uri());
 
       expect(res, isNotNull);
       expect(res.response, mockResponse);
     });
 
-    test(
-        "throws ClientStreamException with transformed response on failure status code",
-        () async {
+    test('throws ClientStreamException on failure status code', () async {
       when(mockResponse.statusCode).thenReturn(400);
       when(mockResponse.stream)
           .thenAnswer((i) => ByteStream(const Stream.empty()));
