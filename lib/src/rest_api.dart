@@ -122,7 +122,7 @@ class RestApi {
   }
 
   Future<DbResponse> post(
-    Map<String, dynamic> body, {
+    dynamic body, {
     String path,
     PrintMode printMode,
     bool eTag = false,
@@ -143,7 +143,7 @@ class RestApi {
   }
 
   Future<DbResponse> put(
-    Map<String, dynamic> body, {
+    dynamic body, {
     String path,
     PrintMode printMode,
     bool eTag = false,
@@ -164,6 +164,8 @@ class RestApi {
     );
     return _parseResponse(response, eTag);
   }
+
+  // TODO implement patch
 
   Future<DbResponse> delete({
     String path,
