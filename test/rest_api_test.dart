@@ -11,6 +11,8 @@ class MockClient extends Mock implements Client {}
 
 class MockResponse extends Mock implements Response {}
 
+class MockStreamedResponse extends Mock implements StreamedResponse {}
+
 void main() {
   const databaseName = 'database';
   final mockResponse = MockResponse();
@@ -403,6 +405,219 @@ void main() {
 
         expect(
           () => sut.put(null),
+          throwsA(const DbException(
+            statusCode: 404,
+            error: 'message',
+          )),
+        );
+      });
+    });
+
+    group('patch', () {
+      setUp(() {
+        when(mockClient.patch(
+          any,
+          headers: anyNamed('headers'),
+          body: anyNamed('body'),
+        )).thenAnswer((i) async => mockResponse);
+      });
+
+      test('call client.patch with default parameters', () async {
+        await sut.patch(const <String, dynamic>{'a': 42});
+
+        verify(mockClient.patch(
+          Uri.https(
+            'database.firebaseio.com',
+            '.json',
+            const {},
+          ),
+          headers: const {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+          },
+          body: '{"a":42}',
+        ));
+      });
+
+      test('call client.patch with all parameters', () async {
+        sut
+          ..idToken = 'token'
+          ..timeout = const Timeout.min(15)
+          ..writeSizeLimit = WriteSizeLimit.large;
+
+        await sut.patch(
+          const <String, dynamic>{'c': false},
+          path: 'some/stuff/',
+          printMode: PrintMode.silent,
+        );
+
+        verify(mockClient.patch(
+          Uri.https(
+            'database.firebaseio.com',
+            'some/stuff/.json',
+            const {
+              'auth': 'token',
+              'timeout': '15min',
+              'writeSizeLimit': 'large',
+              'print': 'silent',
+            },
+          ),
+          headers: const {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+          },
+          body: '{"c":false}',
+        ));
+      });
+
+      test('parses valid response', () async {
+        when(mockResponse.body).thenReturn('{"a": 1}');
+
+        final result = await sut.patch(null);
+        expect(
+          result,
+          const DbResponse(
+            data: {
+              'a': 1,
+            },
+          ),
+        );
+      });
+
+      test('returns empty response ', () async {
+        when(mockResponse.statusCode).thenReturn(204);
+        when(mockResponse.body).thenReturn('{"a": 1}');
+
+        final result = await sut.patch(null);
+        expect(
+          result,
+          const DbResponse(
+            data: null,
+          ),
+        );
+      });
+
+      test('throws DbError for failed requests', () async {
+        when(mockResponse.statusCode).thenReturn(404);
+        when(mockResponse.body).thenReturn('{"error": "message"}');
+
+        expect(
+          () => sut.patch(null),
+          throwsA(const DbException(
+            statusCode: 404,
+            error: 'message',
+          )),
+        );
+      });
+    });
+
+    group('delete', () {
+      setUp(() {
+        when(mockClient.delete(
+          any,
+          headers: anyNamed('headers'),
+        )).thenAnswer((i) async => mockResponse);
+      });
+
+      test('call client.delete with default parameters', () async {
+        await sut.delete();
+
+        verify(mockClient.delete(
+          Uri.https(
+            'database.firebaseio.com',
+            '.json',
+            const {},
+          ),
+          headers: const {
+            'Accept': 'application/json',
+          },
+        ));
+      });
+
+      test('call client.delete with all parameters', () async {
+        sut
+          ..idToken = 'token'
+          ..timeout = const Timeout.min(1)
+          ..writeSizeLimit = WriteSizeLimit.unlimited;
+
+        await sut.delete(
+          path: 'delete/this',
+          printMode: PrintMode.silent,
+          eTag: true,
+          ifMatch: 'another-tag',
+        );
+
+        verify(mockClient.delete(
+          Uri.https(
+            'database.firebaseio.com',
+            'delete/this.json',
+            const {
+              'auth': 'token',
+              'timeout': '1min',
+              'writeSizeLimit': 'unlimited',
+              'print': 'silent',
+            },
+          ),
+          headers: const {
+            'Accept': 'application/json',
+            'X-Firebase-ETag': 'true',
+            'if-match': 'another-tag',
+          },
+        ));
+      });
+
+      test('parses valid response', () async {
+        when(mockResponse.body).thenReturn('{"a": 1}');
+
+        final result = await sut.delete();
+        expect(
+          result,
+          const DbResponse(
+            data: {
+              'a': 1,
+            },
+          ),
+        );
+      });
+
+      test('parses valid response with eTag', () async {
+        when(mockResponse.headers).thenReturn(const {
+          'ETag': 'tag',
+        });
+
+        final result = await sut.delete(eTag: true);
+        expect(
+          result,
+          const DbResponse(
+            eTag: 'tag',
+            data: null,
+          ),
+        );
+      });
+
+      test('returns empty response with etag', () async {
+        when(mockResponse.statusCode).thenReturn(204);
+        when(mockResponse.body).thenReturn('{"a": 1}');
+        when(mockResponse.headers).thenReturn(const {
+          'ETag': 'tag',
+        });
+
+        final result = await sut.delete(eTag: true);
+        expect(
+          result,
+          const DbResponse(
+            eTag: 'tag',
+            data: null,
+          ),
+        );
+      });
+
+      test('throws DbError for failed requests', () async {
+        when(mockResponse.statusCode).thenReturn(404);
+        when(mockResponse.body).thenReturn('{"error": "message"}');
+
+        expect(
+          () => sut.delete(),
           throwsA(const DbException(
             statusCode: 404,
             error: 'message',

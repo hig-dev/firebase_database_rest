@@ -165,7 +165,24 @@ class RestApi {
     return _parseResponse(response, eTag);
   }
 
-  // TODO implement patch
+  Future<DbResponse> patch(
+    Map<String, dynamic> updateChildren, {
+    String path,
+    PrintMode printMode,
+  }) async {
+    _logger?.fine('Sending patch request...');
+    final response = await client.patch(
+      _buildUri(
+        path,
+        printMode: printMode,
+      ),
+      body: json.encode(updateChildren),
+      headers: _buildHeaders(
+        hasBody: true,
+      ),
+    );
+    return _parseResponse(response, false);
+  }
 
   Future<DbResponse> delete({
     String path,
