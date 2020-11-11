@@ -7,12 +7,12 @@ part 'stream_event.g.dart';
 abstract class StreamEvent with _$StreamEvent {
   const factory StreamEvent.put({
     @required String path,
-    @required Map<String, dynamic> data,
+    @required @nullable dynamic data,
   }) = StreamEventPut;
 
   const factory StreamEvent.patch({
     @required String path,
-    @required Map<String, dynamic> data,
+    @required @nullable dynamic data,
   }) = StreamEventPatch;
 
   const factory StreamEvent.authRevoked() = StreamEventAuthRevoked;

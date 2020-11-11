@@ -1,9 +1,14 @@
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:firebase_database_rest/src/filter.dart';
 import 'package:firebase_database_rest/src/models/db_exception.dart';
 import 'package:firebase_database_rest/src/models/db_response.dart';
+import 'package:firebase_database_rest/src/models/stream_event.dart';
 import 'package:firebase_database_rest/src/models/timeout.dart';
 import 'package:firebase_database_rest/src/rest_api.dart';
 import 'package:http/http.dart';
+import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 import 'package:test/test.dart' hide Timeout;
 
@@ -623,6 +628,202 @@ void main() {
             error: 'message',
           )),
         );
+      });
+    });
+
+    group('stream', () {
+      void _verifyStream(
+        dynamic url, {
+        Map<String, String> headers,
+      }) {
+        final captured = verify(mockClient.send(captureAny)).captured;
+        final request = captured.single as Request;
+        expect(request.method, 'GET');
+        expect(request.url, url);
+        expect(request.headers, headers);
+      }
+
+      void _mockStream(
+        MockStreamedResponse response,
+        Iterable<String> elements,
+      ) {
+        when(response.stream).thenAnswer(
+          (i) => ByteStream(
+            Stream.fromIterable(elements).transform(utf8.encoder),
+          ),
+        );
+      }
+
+      final mockStreamedResponse = MockStreamedResponse();
+
+      setUp(() {
+        reset(mockStreamedResponse);
+
+        when(mockStreamedResponse.statusCode).thenReturn(200);
+        when(mockStreamedResponse.stream).thenAnswer(
+          (i) => ByteStream(const Stream.empty()),
+        );
+        when(mockStreamedResponse.headers).thenReturn(const {});
+
+        when(mockClient.send(any))
+            .thenAnswer((i) async => mockStreamedResponse);
+      });
+
+      test('calls client.delete with default parameters', () async {
+        await sut.stream();
+
+        _verifyStream(
+          Uri.https(
+            'database.firebaseio.com',
+            '.json',
+            const {},
+          ),
+          headers: const {
+            'Accept': 'text/event-stream',
+            'Cache-Control': 'no-cache',
+          },
+        );
+      });
+
+      test('calls client.stream with all parameters', () async {
+        sut
+          ..idToken = 'token'
+          ..timeout = const Timeout.ms(999)
+          ..writeSizeLimit = WriteSizeLimit.unlimited;
+
+        await sut.stream(
+          path: 'stream/path',
+          filter: Filter.value<int>().equalTo(42).build(),
+          printMode: PrintMode.silent,
+          formatMode: FormatMode.export,
+          shallow: false,
+        );
+
+        _verifyStream(
+          Uri.https(
+            'database.firebaseio.com',
+            'stream/path.json',
+            const {
+              'auth': 'token',
+              'timeout': '999ms',
+              'writeSizeLimit': 'unlimited',
+              'print': 'silent',
+              'format': 'export',
+              'shallow': 'false',
+              'orderBy': r'$value',
+              'equalTo': '42',
+            },
+          ),
+          headers: const {
+            'Accept': 'text/event-stream',
+            'Cache-Control': 'no-cache',
+          },
+        );
+      });
+
+      test('returns stream events', () async {
+        _mockStream(mockStreamedResponse, const [
+          'event: put\n',
+          'data: {"path": "/a", "data": 42}\n',
+          '\n',
+          'event: keep-alive\n',
+          'data: null\n',
+          '\n',
+          'event: patch\n',
+          'data: {"path": "/b/c", "data": true}\n',
+          '\n',
+        ]);
+
+        final stream = await sut.stream();
+        expect(stream, isNotNull);
+
+        expect(await stream.toList(), const [
+          StreamEventPut(path: '/a', data: 42),
+          StreamEventPatch(path: '/b/c', data: true),
+        ]);
+      });
+
+      test('throws DbException on error', () async {
+        _mockStream(
+          mockStreamedResponse,
+          const [
+            'event: put\n',
+            'data: {"path": "/a", "data": null}\n',
+            '\n',
+            'event: cancel\n',
+            'data: error\n',
+            '\n',
+            'event: put\n',
+            'data: {"path": "/b", "data": null}\n',
+            '\n',
+          ],
+        );
+
+        final stream = await sut.stream();
+        final events = <StreamEvent>[];
+        final completer = Completer<void>();
+        stream.listen(
+          events.add,
+          onError: completer.completeError,
+          onDone: () {
+            if (!completer.isCompleted) {
+              completer.complete();
+            }
+          },
+        );
+
+        await expectLater(
+          () => completer.future,
+          throwsA(const DbException(
+            statusCode: 400,
+            error: 'error',
+          )),
+        );
+        expect(events, const [
+          StreamEventPut(path: '/a', data: null),
+        ]);
+      });
+
+      test('yields authRevoked if auth was revoked', () async {
+        _mockStream(mockStreamedResponse, const [
+          'event: put\n',
+          'data: {"path": "/a", "data": [1, 2, 3]}\n',
+          '\n',
+          'event: auth_revoked\n',
+          'data: null\n',
+          '\n',
+          'event: patch\n',
+          'data: {"path": "/b", "data": {"a": false}}\n',
+          '\n',
+        ]);
+
+        final stream = await sut.stream();
+        expect(stream, isNotNull);
+
+        expect(await stream.toList(), const [
+          StreamEventPut(path: '/a', data: [1, 2, 3]),
+          StreamEvent.authRevoked(),
+          StreamEventPatch(path: '/b', data: {'a': false}),
+        ]);
+      });
+
+      test('logs warning on unknown event', () async {
+        Logger.root.level = Level.ALL;
+        final test = Logger.root.onRecord.any(
+          (e) => e.message == 'Ignoring unsupported stream event: __test_event',
+        );
+
+        _mockStream(mockStreamedResponse, const [
+          'event: __test_event\n',
+          'data: 42\n',
+          '\n',
+        ]);
+
+        final stream = await sut.stream();
+        expect(await stream.length, 0);
+
+        final result = await test;
+        expect(result, true);
       });
     });
   });

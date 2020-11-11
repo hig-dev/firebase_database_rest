@@ -204,13 +204,13 @@ class RestApi {
     return _parseResponse(response, eTag);
   }
 
-  Stream<StreamEvent> stream({
+  Future<Stream<StreamEvent>> stream({
     String path,
     PrintMode printMode,
     FormatMode formatMode,
-    bool shallow = false,
+    bool shallow,
     Filter filter,
-  }) async* {
+  }) async {
     _logger?.fine('Sending stream request...');
     final source = await client.stream(
       _buildUri(
@@ -221,32 +221,7 @@ class RestApi {
         shallow: shallow,
       ),
     );
-
-    await for (final event in source) {
-      _logger?.fine('Received event of type: ${event.event}');
-      switch (event.event) {
-        case 'put':
-          yield StreamEventPut.fromJson(
-            json.decode(event.data) as Map<String, dynamic>,
-          );
-          break;
-        case 'patch':
-          yield StreamEventPatch.fromJson(
-            json.decode(event.data) as Map<String, dynamic>,
-          );
-          break;
-        case 'keep-alive':
-          break; // no-op
-        case 'cancel':
-          throw DbException(error: event.data);
-        case 'auth_revoked':
-          yield const StreamEvent.authRevoked();
-          break;
-        default:
-          _logger?.warning('Ignoring unsupported stream event: ${event.event}');
-          break;
-      }
-    }
+    return _transformEventStream(source);
   }
 
   Uri _buildUri(
@@ -311,6 +286,34 @@ class RestApi {
         data: json.decode(response.body) as Map<String, dynamic>,
         eTag: tag,
       );
+    }
+  }
+
+  Stream<StreamEvent> _transformEventStream(EventSource source) async* {
+    await for (final event in source) {
+      _logger?.fine('Received event of type: ${event.event}');
+      switch (event.event) {
+        case 'put':
+          yield StreamEventPut.fromJson(
+            json.decode(event.data) as Map<String, dynamic>,
+          );
+          break;
+        case 'patch':
+          yield StreamEventPatch.fromJson(
+            json.decode(event.data) as Map<String, dynamic>,
+          );
+          break;
+        case 'keep-alive':
+          break; // no-op
+        case 'cancel':
+          throw DbException(error: event.data);
+        case 'auth_revoked':
+          yield const StreamEvent.authRevoked();
+          break;
+        default:
+          _logger?.warning('Ignoring unsupported stream event: ${event.event}');
+          break;
+      }
     }
   }
 }
