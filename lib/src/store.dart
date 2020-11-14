@@ -78,7 +78,7 @@ abstract class FirebaseStore<T> {
     String loggingCategory,
   }) = _CallbackFirebaseStore.api;
 
-  FirebaseStore<U> store<U>({
+  FirebaseStore<U> subStore<U>({
     @required String path,
     @required DataFromJsonCallback<U> onDataFromJson,
     @required DataToJsonCallback<U> onDataToJson,
@@ -109,14 +109,14 @@ abstract class FirebaseStore<T> {
     return _mapTransform(response.data);
   }
 
-  Future<T> load(String key) async {
+  Future<T> read(String key) async {
     final response = await restApi.get(
       path: _path(key),
     );
     return dataFromJson(response.data);
   }
 
-  Future<T> save(String key, T data, {bool silent = false}) async {
+  Future<T> write(String key, T data, {bool silent = false}) async {
     final response = await restApi.put(
       dataToJson(data),
       path: _path(key),
@@ -219,8 +219,10 @@ abstract class FirebaseStore<T> {
 
   @protected
   T dataFromJson(dynamic json);
+
   @protected
   dynamic dataToJson(T data);
+
   @protected
   T patchData(T data, Map<String, dynamic> updatedFields);
 
