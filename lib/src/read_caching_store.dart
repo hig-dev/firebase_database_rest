@@ -12,7 +12,7 @@ class OfflineException implements Exception {
   String toString() => 'The operation cannot be executed - device is offline';
 }
 
-abstract class ReadCachingStore<T> implements Box<T> {
+abstract class ReadCachingStore<T> {
   final FirebaseStore<T> store;
   final Box<T> box;
 
@@ -20,75 +20,31 @@ abstract class ReadCachingStore<T> implements Box<T> {
 
   Future<void> reload([Filter filter]);
 
-  @override
-  Future<int> add(T value) async {
-    if (!await isOnline()) {
-      throw OfflineException();
-    }
+  Future<String> add(T value) async {
+    await _checkOnline();
     final key = await store.create(value);
-    box.put(key, value);
+    await box.put(key, value);
     return key;
   }
 
-  @override
-  Future<Iterable<int>> addAll(Iterable<T> values) {
-    // TODO: implement addAll
-    throw UnimplementedError();
+  Future<int> clear() => box.clear();
+
+  Future<void> close() => box.close();
+
+  Future<void> compact() => box.close();
+
+  bool containsKey(covariant String key) => box.containsKey(key);
+
+  Future<void> delete(covariant String key) async {
+    await _checkOnline();
+    await store.delete(key, silent: true);
+    await box.delete(key);
   }
 
-  @override
-  Future<int> clear() {
-    // TODO: implement clear
-    throw UnimplementedError();
-  }
+  Future<void> deleteFromDisk() => box.deleteFromDisk();
 
-  @override
-  Future<void> close() {
-    // TODO: implement close
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<void> compact() {
-    // TODO: implement compact
-    throw UnimplementedError();
-  }
-
-  @override
-  bool containsKey(covariant String key) {
-    // TODO: implement containsKey
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<void> delete(covariant String key) {
-    // TODO: implement delete
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<void> deleteAll(Iterable keys) {
-    // TODO: implement deleteAll
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<void> deleteAt(int index) {
-    // TODO: implement deleteAt
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<void> deleteFromDisk() {
-    // TODO: implement deleteFromDisk
-    throw UnimplementedError();
-  }
-
-  @override
-  T get(covariant String key, {T defaultValue}) {
-    // TODO: implement get
-    throw UnimplementedError();
-  }
+  T get(covariant String key, {T defaultValue}) =>
+      box.get(key, defaultValue: defaultValue);
 
   @override
   T getAt(int index) {
@@ -178,5 +134,11 @@ abstract class ReadCachingStore<T> implements Box<T> {
   }
 
   @protected
-  FutureOr<bool> isOnline();
+  FutureOr<bool> isOnline() => true;
+
+  Future _checkOnline() async {
+    if (!await isOnline()) {
+      throw OfflineException();
+    }
+  }
 }
