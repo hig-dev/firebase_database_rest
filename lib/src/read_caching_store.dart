@@ -4,6 +4,7 @@ import 'dart:async';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:hive/hive.dart';
 
+import 'auto_renew_stream.dart';
 import 'filter.dart';
 import 'store.dart';
 
@@ -18,7 +19,7 @@ class OfflineException implements Exception {
   String toString() => 'The operation cannot be executed - device is offline';
 }
 
-abstract class ReadCachingStore<T> {
+class ReadCachingStore<T> implements FirebaseStreamCache<T> {
   final FirebaseStore<T> store;
   final Box<T> box;
 
@@ -31,31 +32,7 @@ abstract class ReadCachingStore<T> {
     await _checkOnline();
     final newValues =
         await (filter != null ? store.query(filter) : store.all());
-    switch (reloadStrategy) {
-      case ReloadStrategy.clear:
-        await box.clear();
-        await box.putAll(newValues);
-        break;
-      case ReloadStrategy.compareKey:
-        final oldKeys = box.keys.toSet();
-        final deletedKeys = oldKeys.difference(newValues.keys.toSet());
-        await Future.wait([
-          box.putAll(newValues),
-          box.deleteAll(deletedKeys),
-        ]);
-        break;
-      case ReloadStrategy.compareValue:
-        final oldKeys = box.keys.toSet();
-        final deletedKeys = oldKeys.difference(newValues.keys.toSet());
-        newValues.removeWhere(
-          (key, value) => box.get(key) == value,
-        );
-        await Future.wait([
-          box.putAll(newValues),
-          box.deleteAll(deletedKeys),
-        ]);
-        break;
-    }
+    await reset(newValues);
   }
 
   Future<T> fetch(String key) async {
@@ -63,6 +40,56 @@ abstract class ReadCachingStore<T> {
     final value = await store.read(key);
     await _boxAwait(box.put(key, value));
     return value;
+  }
+
+  // Future<T> patch(String key, Map<String, dynamic> updateFields) async {}
+
+  Future<T> transaction(String key, TransactionCallback<T> transaction) async {
+    await _checkOnline();
+    final value = await store.transaction(key, transaction);
+    await _boxAwait(box.put(key, value));
+    return value;
+  }
+
+  Future<StreamSubscription<void>> stream({
+    Filter filter,
+    bool clearCache = true,
+    Function onError,
+    void Function() onDone,
+    bool cancelOnError = true,
+  }) async {
+    if (clearCache) {
+      box.clear();
+    }
+    final stream =
+        await (filter != null ? store.streamQuery(filter) : store.streamAll());
+    return stream.listen(
+      (event) => box.put(event.key, event.value),
+      onError: onError,
+      onDone: onDone,
+      cancelOnError: cancelOnError,
+    );
+  }
+
+  StreamSubscription<void> streamRenewed({
+    FutureOr<Filter> Function() onRenewFilter,
+    bool clearCache = true,
+    Function onError,
+    void Function() onDone,
+    bool cancelOnError = true,
+  }) {
+    if (clearCache) {
+      box.clear();
+    }
+    return AutoRenewStream(() async {
+      final filter = onRenewFilter != null ? (await onRenewFilter()) : null;
+      return filter != null ? store.streamQuery(filter) : store.streamAll();
+    }).listen(
+      (event) => box.put(event.key, event.value),
+      onError: onError,
+      onDone: onDone,
+      cancelOnError: cancelOnError,
+    );
   }
 
   Future<String> add(T value) async {
@@ -127,6 +154,64 @@ abstract class ReadCachingStore<T> {
 
   @protected
   FutureOr<bool> isOnline() => true;
+
+  @internal
+  @override
+  Future<void> reset(Map<String, T> data) async {
+    switch (reloadStrategy) {
+      case ReloadStrategy.clear:
+        final fClear = box.clear();
+        final fPut = box.putAll(data);
+        await _boxAwait(Future.wait([fClear, fPut]));
+        break;
+      case ReloadStrategy.compareKey:
+        final oldKeys = box.keys.toSet();
+        final deletedKeys = oldKeys.difference(data.keys.toSet());
+        await _boxAwait(Future.wait([
+          box.putAll(data),
+          box.deleteAll(deletedKeys),
+        ]));
+        break;
+      case ReloadStrategy.compareValue:
+        final oldKeys = box.keys.toSet();
+        final deletedKeys = oldKeys.difference(data.keys.toSet());
+        data.removeWhere(
+          (key, value) => box.get(key) == value,
+        );
+        await _boxAwait(Future.wait([
+          box.putAll(data),
+          box.deleteAll(deletedKeys),
+        ]));
+        break;
+    }
+  }
+
+  @internal
+  @override
+  Future<void> set(String key, T value) => _boxAwait(box.put(key, value));
+
+  @internal
+  @override
+  Future<T> update(
+    String key,
+    T Function(T value) update,
+    void Function() ifAbsent,
+  ) async {
+    if (box.containsKey(key)) {
+      final current = box.get(key);
+      final updated = update(current);
+      await _boxAwait(box.put(key, updated));
+      return updated;
+    } else {
+      ifAbsent();
+      throw StateError('ifAbsent must throw');
+    }
+  }
+
+  @internal
+  @override
+  Iterable<MapEntry<String, T>> get entries =>
+      box.toMap().cast<String, T>().entries;
 
   Future _checkOnline() async {
     if (!await isOnline()) {

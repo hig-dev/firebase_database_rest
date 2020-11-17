@@ -35,6 +35,20 @@ typedef PatchDataCallback<T> = T Function(
   Map<String, dynamic> updatedFields,
 );
 
+abstract class FirebaseStreamCache<T> {
+  const FirebaseStreamCache._();
+
+  Iterable<MapEntry<String, T>> get entries;
+
+  Future<void> reset(Map<String, T> data);
+  Future<void> set(String key, T value);
+  Future<T> update(
+    String key,
+    T Function(T value) update,
+    @alwaysThrows void Function() ifAbsent, // TODO use never
+  );
+}
+
 abstract class FirebaseStore<T> {
   static const loggingTag = 'firebase_database_rest.FirebaseStore';
 
@@ -195,11 +209,13 @@ abstract class FirebaseStore<T> {
     );
   }
 
-  Future<Stream<MapEntry<String, T>>> streamAll() async {
+  Future<Stream<MapEntry<String, T>>> streamAll([
+    FirebaseStreamCache<T> cache,
+  ]) async {
     final stream = await restApi.stream(
       path: _path(),
     );
-    return _transformKeyValuePairs(stream);
+    return _transformKeyValuePairs(stream, cache ?? _MapStreamCache());
   }
 
   Future<Stream<T>> streamEntry(String key) async {
@@ -209,12 +225,15 @@ abstract class FirebaseStore<T> {
     return _transformValues(stream);
   }
 
-  Future<Stream<MapEntry<String, T>>> streamQuery(Filter filter) async {
+  Future<Stream<MapEntry<String, T>>> streamQuery(
+    Filter filter, [
+    FirebaseStreamCache<T> cache,
+  ]) async {
     final stream = await restApi.stream(
       path: _path(),
       filter: filter,
     );
-    return _transformKeyValuePairs(stream);
+    return _transformKeyValuePairs(stream, cache ?? _MapStreamCache());
   }
 
   @protected
@@ -239,24 +258,24 @@ abstract class FirebaseStore<T> {
 
   Stream<MapEntry<String, T>> _transformKeyValuePairs(
     Stream<StreamEvent> stream,
+    FirebaseStreamCache<T> cache,
   ) async* {
     final subPathRegexp = RegExp(r'^\/([^\/]+)$');
 
-    var fullState = <String, T>{};
     await for (final event in stream) {
       yield* event.when(
         put: (path, dynamic data) async* {
           if (path == '/') {
-            fullState = _mapTransform(data);
-            yield* Stream.fromIterable(fullState.entries);
+            await cache.reset(_mapTransform(data));
+            yield* Stream.fromIterable(cache.entries);
           } else {
             final match = subPathRegexp.firstMatch(path);
             if (match != null) {
               final entry = MapEntry(match[1], dataFromJson(data));
-              fullState[entry.key] = entry.value;
+              await cache.set(entry.key, entry.value);
               yield entry;
             } else {
-              _logPathToDeep(path);
+              _logPathTooDeep(path);
             }
           }
         },
@@ -264,14 +283,14 @@ abstract class FirebaseStore<T> {
           final match = subPathRegexp.firstMatch(path);
           if (match != null) {
             final key = match[1];
-            final updated = fullState.update(
+            final updated = await cache.update(
               key,
               (value) => patchData(value, data as Map<String, dynamic>),
-              ifAbsent: () => throw PatchOnNullError(key),
+              () => throw PatchOnNullError(key),
             );
             yield MapEntry(key, updated);
           } else {
-            _logPathToDeep(path);
+            _logPathTooDeep(path);
           }
         },
         authRevoked: () => throw AuthRevokedException(),
@@ -287,7 +306,7 @@ abstract class FirebaseStore<T> {
           if (path == '/') {
             return dataFromJson(data);
           } else {
-            _logPathToDeep(path);
+            _logPathTooDeep(path);
             return null;
           }
         },
@@ -298,7 +317,7 @@ abstract class FirebaseStore<T> {
             }
             return patchData(currentValue, data as Map<String, dynamic>);
           } else {
-            _logPathToDeep(path);
+            _logPathTooDeep(path);
             return null;
           }
         },
@@ -310,8 +329,8 @@ abstract class FirebaseStore<T> {
     }
   }
 
-  void _logPathToDeep(String path) => _logger?.warning(
-        'Skipping stream event with path "$path", path is to deep',
+  void _logPathTooDeep(String path) => _logger?.warning(
+        'Skipping stream event with path "$path", path is too deep',
       );
 }
 
@@ -355,4 +374,36 @@ class _CallbackFirebaseStore<T> extends FirebaseStore<T> {
   @override
   T patchData(T data, Map<String, dynamic> updatedFields) =>
       onPatchData(data, updatedFields);
+}
+
+class _MapStreamCache<T> implements FirebaseStreamCache<T> {
+  Map<String, T> cache = {};
+
+  @override
+  Future<void> reset(Map<String, T> data) {
+    cache = data;
+    return Future.value();
+  }
+
+  @override
+  Future<void> set(String key, T value) {
+    cache[key] = value;
+    return Future.value();
+  }
+
+  @override
+  Future<T> update(
+    String key,
+    T Function(T value) update,
+    void Function() ifAbsent,
+  ) async =>
+      Future.value(
+        cache.update(key, update, ifAbsent: () {
+          ifAbsent();
+          throw StateError('ifAbsent must throw');
+        }),
+      );
+
+  @override
+  Iterable<MapEntry<String, T>> get entries => cache.entries;
 }
