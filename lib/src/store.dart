@@ -9,7 +9,7 @@ import 'models/post_response.dart';
 import 'models/stream_event.dart';
 import 'rest_api.dart';
 import 'store_event.dart';
-import 'transaction_result.dart';
+import 'transaction.dart';
 
 class ETagReceiver {
   String _eTag;
@@ -29,10 +29,6 @@ class PatchOnNullError extends Error {
           'no value with key: ${Error.safeToString(key)}'
       : 'Cannot patch a non existant entry';
 }
-
-typedef TransactionCallback<T> = FutureOr<TransactionResult<T>> Function(
-  T value,
-);
 
 typedef DataFromJsonCallback<T> = T Function(dynamic json);
 
@@ -195,44 +191,22 @@ abstract class FirebaseStore<T> {
     return (response.data as Map<String, dynamic>).keys.toList();
   }
 
-  Future<T> transaction(
-    String key,
-    TransactionCallback<T> transaction, {
+  Future<FirebaseTransaction<T>> transaction(
+    String key, {
     bool silent = false,
     ETagReceiver eTagReceiver,
   }) async {
-    final getResponse = await restApi.get(
+    final response = await restApi.get(
       path: _path(key),
       eTag: true,
     );
-    final result = await transaction(dataFromJson(getResponse.data));
-    return result.when(
-      update: (data) async {
-        final putResponse = await restApi.put(
-          dataToJson(data),
-          path: _path(key),
-          printMode: silent ? PrintMode.silent : null,
-          ifMatch: getResponse.eTag,
-          eTag: eTagReceiver != null,
-        );
-        if (eTagReceiver != null) {
-          eTagReceiver._eTag = putResponse.eTag;
-        }
-        return silent ? null : dataFromJson(putResponse.data);
-      },
-      delete: () async {
-        final deleteResponse = await restApi.delete(
-          path: _path(key),
-          printMode: silent ? PrintMode.silent : null,
-          ifMatch: getResponse.eTag,
-          eTag: eTagReceiver != null,
-        );
-        if (eTagReceiver != null) {
-          eTagReceiver._eTag = deleteResponse.eTag;
-        }
-        return silent ? null : dataFromJson(deleteResponse.data);
-      },
-      abort: () => null,
+    return _StoreTransaction(
+      store: this,
+      key: key,
+      value: dataFromJson(response.data),
+      eTag: response.eTag,
+      silent: silent,
+      eTagReceiver: eTagReceiver,
     );
   }
 
@@ -475,4 +449,80 @@ class _StorePatchSet<T> implements PatchSet<T> {
       runtimeType.hashCode ^
       store.hashCode ^
       const DeepCollectionEquality().hash(data);
+}
+
+class _StoreTransaction<T> implements FirebaseTransaction<T> {
+  final FirebaseStore<T> store;
+
+  @override
+  final String key;
+
+  @override
+  T value;
+
+  @override
+  bool modified = false;
+
+  @override
+  bool get deleted => value == null;
+
+  final String eTag;
+  final bool silent;
+  final ETagReceiver eTagReceiver;
+
+  _StoreTransaction({
+    @required this.store,
+    @required this.key,
+    @required this.value,
+    @required this.eTag,
+    @required this.silent,
+    @required this.eTagReceiver,
+  });
+
+  @override
+  void update(T value) {
+    modified = true;
+    this.value = value;
+  }
+
+  @override
+  void delete() {
+    value = null;
+    modified = true;
+  }
+
+  @override
+  Future<T> commit() async {
+    if (!modified) {
+      if (eTagReceiver != null) {
+        eTagReceiver._eTag = eTag;
+      }
+      return silent ? null : value;
+    }
+
+    if (value != null) {
+      final putResponse = await store.restApi.put(
+        store.dataToJson(value),
+        path: store._path(key),
+        printMode: silent ? PrintMode.silent : null,
+        ifMatch: eTag,
+        eTag: eTagReceiver != null,
+      );
+      if (eTagReceiver != null) {
+        eTagReceiver._eTag = putResponse.eTag;
+      }
+      return silent ? null : store.dataFromJson(putResponse.data);
+    } else {
+      final deleteResponse = await store.restApi.delete(
+        path: store._path(key),
+        printMode: silent ? PrintMode.silent : null,
+        ifMatch: eTag,
+        eTag: eTagReceiver != null,
+      );
+      if (eTagReceiver != null) {
+        eTagReceiver._eTag = deleteResponse.eTag;
+      }
+      return silent ? null : store.dataFromJson(deleteResponse.data);
+    }
+  }
 }

@@ -8,6 +8,7 @@ import 'auto_renew_stream.dart';
 import 'filter.dart';
 import 'store.dart';
 import 'store_event.dart';
+import 'transaction.dart';
 
 enum ReloadStrategy {
   clear,
@@ -20,14 +21,16 @@ class OfflineException implements Exception {
   String toString() => 'The operation cannot be executed - device is offline';
 }
 
-class ReadCachingStore<T> {
+abstract class ReadCachingStoreBase<T> {
   final FirebaseStore<T> store;
-  final Box<T> box;
 
-  bool awaitBoxOperations = false;
+  BoxBase<T> get box;
+
+  bool get awaitBoxOperations;
+
   ReloadStrategy reloadStrategy = ReloadStrategy.compareKey;
 
-  ReadCachingStore(this.store, this.box);
+  ReadCachingStoreBase(this.store);
 
   Future<void> reload([Filter filter]) async {
     await _checkOnline();
@@ -50,11 +53,12 @@ class ReadCachingStore<T> {
     return value;
   }
 
-  Future<T> transaction(String key, TransactionCallback<T> transaction) async {
+  Future<FirebaseTransaction<T>> transaction(String key) async {
     await _checkOnline();
-    final value = await store.transaction(key, transaction);
-    await _boxAwait(box.put(key, value));
-    return value;
+    return _ReadStoreTransaction(
+      this,
+      await store.transaction(key),
+    );
   }
 
   Future<StreamSubscription<void>> stream({
@@ -105,7 +109,7 @@ class ReadCachingStore<T> {
 
   Future<void> close() => box.close();
 
-  Future<void> compact() => box.close();
+  Future<void> compact() => box.compact();
 
   bool containsKey(covariant String key) => box.containsKey(key);
 
@@ -117,9 +121,6 @@ class ReadCachingStore<T> {
 
   Future<void> deleteFromDisk() => box.deleteFromDisk();
 
-  T get(covariant String key, {T defaultValue}) =>
-      box.get(key, defaultValue: defaultValue);
-
   bool get isEmpty => box.isEmpty;
 
   bool get isNotEmpty => box.isNotEmpty;
@@ -128,7 +129,7 @@ class ReadCachingStore<T> {
 
   Iterable<String> get keys => box.keys.cast<String>();
 
-  bool get lazy => box.lazy; // TODO enable or remove
+  bool get lazy => box.lazy; // TODO enable
 
   int get length => box.length;
 
@@ -141,16 +142,6 @@ class ReadCachingStore<T> {
     final savedValue = await store.write(key, value);
     await _boxAwait(box.put(key, savedValue));
   }
-
-  Map<String, T> toMap() => box.toMap().cast<String, T>();
-
-  Iterable<T> get values => box.values;
-
-  Iterable<T> valuesBetween({
-    covariant String startKey,
-    covariant String endKey,
-  }) =>
-      box.valuesBetween(startKey: startKey, endKey: endKey);
 
   Stream<BoxEvent> watch({covariant String key}) => box.watch(key: key);
 
@@ -182,15 +173,7 @@ class ReadCachingStore<T> {
         ]));
         break;
       case ReloadStrategy.compareValue:
-        final oldKeys = box.keys.toSet();
-        final deletedKeys = oldKeys.difference(data.keys.toSet());
-        data.removeWhere(
-          (key, value) => box.get(key) == value,
-        );
-        await _boxAwait(Future.wait([
-          box.putAll(data),
-          box.deleteAll(deletedKeys),
-        ]));
+        await _resetCompare(data);
         break;
     }
   }
@@ -199,9 +182,111 @@ class ReadCachingStore<T> {
         reset: (data) => _reset(data),
         put: (key, value) => _boxAwait(box.put(key, value)),
         delete: (key) => _boxAwait(box.delete(key)),
-        patch: (key, value) => _boxAwait(box.put(
-          key,
-          value.apply(box.get(key)),
-        )),
+        patch: (key, value) => _applyPatch(key, value),
       );
+
+  Future<void> _resetCompare(Map<String, T> data);
+
+  Future<void> _applyPatch(String key, PatchSet<T> patchSet);
+}
+
+class ReadCachingStore<T> extends ReadCachingStoreBase<T> {
+  @override
+  final Box<T> box;
+
+  @override
+  bool awaitBoxOperations = false;
+
+  ReadCachingStore(FirebaseStore<T> store, this.box) : super(store);
+
+  T get(covariant String key, {T defaultValue}) =>
+      box.get(key, defaultValue: defaultValue);
+
+  Map<String, T> toMap() => box.toMap().cast<String, T>();
+
+  Iterable<T> get values => box.values;
+
+  Iterable<T> valuesBetween({
+    covariant String startKey,
+    covariant String endKey,
+  }) =>
+      box.valuesBetween(startKey: startKey, endKey: endKey);
+
+  @override
+  Future<void> _resetCompare(Map<String, T> data) async {
+    final oldKeys = box.keys.toSet();
+    final deletedKeys = oldKeys.difference(data.keys.toSet());
+    data.removeWhere(
+      (key, value) => box.get(key) == value,
+    );
+    await _boxAwait(Future.wait([
+      box.putAll(data),
+      box.deleteAll(deletedKeys),
+    ]));
+  }
+
+  @override
+  Future<void> _applyPatch(String key, PatchSet<T> patchSet) =>
+      _boxAwait(box.put(
+        key,
+        patchSet.apply(box.get(key)),
+      ));
+}
+
+class LazyReadCachingStore<T> extends ReadCachingStoreBase<T> {
+  @override
+  final LazyBox<T> box;
+
+  @override
+  bool get awaitBoxOperations => true;
+
+  LazyReadCachingStore(FirebaseStore<T> store, this.box) : super(store);
+
+  @override
+  Future<void> _resetCompare(Map<String, T> data) {
+    throw UnsupportedError(
+      'ReloadStrategy.compareValue is not supported by LazyReadCachingStore',
+    );
+  }
+
+  @override
+  Future<void> _applyPatch(String key, PatchSet<T> patchSet) async {
+    final currentValue = await box.get(key);
+    return _boxAwait(box.put(
+      key,
+      patchSet.apply(currentValue),
+    ));
+  }
+}
+
+class _ReadStoreTransaction<T> implements FirebaseTransaction<T> {
+  final ReadCachingStoreBase<T> store;
+  final FirebaseTransaction<T> storeTransaction;
+
+  _ReadStoreTransaction(this.store, this.storeTransaction);
+
+  @override
+  String get key => storeTransaction.key;
+
+  @override
+  T get value => storeTransaction.value;
+
+  @override
+  bool get modified => storeTransaction.modified;
+
+  @override
+  bool get deleted => storeTransaction.deleted;
+
+  @override
+  void update(T value) => storeTransaction.update(value);
+
+  @override
+  void delete() => storeTransaction.delete();
+
+  @override
+  Future<T> commit() async {
+    final result = await storeTransaction.commit();
+    await store._boxAwait(store.box.put(key, result));
+    return result;
+  }
 }

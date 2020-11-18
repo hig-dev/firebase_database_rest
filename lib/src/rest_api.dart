@@ -220,6 +220,7 @@ class RestApi {
         formatMode: formatMode,
         shallow: shallow,
       ),
+      headers: _buildHeaders(eTag: true),
     );
     return _transformEventStream(source);
   }
