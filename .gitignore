@@ -14,3 +14,6 @@ doc/api/
 
 # Coverage
 coverage/
+
+# Firebase config
+test/firebase_test_config.dart

@@ -7,6 +7,7 @@ import 'package:hive/hive.dart';
 import 'auto_renew_stream.dart';
 import 'filter.dart';
 import 'store.dart';
+import 'store_event.dart';
 
 enum ReloadStrategy {
   clear,
@@ -19,7 +20,7 @@ class OfflineException implements Exception {
   String toString() => 'The operation cannot be executed - device is offline';
 }
 
-class ReadCachingStore<T> implements FirebaseStreamCache<T> {
+class ReadCachingStore<T> {
   final FirebaseStore<T> store;
   final Box<T> box;
 
@@ -32,7 +33,7 @@ class ReadCachingStore<T> implements FirebaseStreamCache<T> {
     await _checkOnline();
     final newValues =
         await (filter != null ? store.query(filter) : store.all());
-    await reset(newValues);
+    await _reset(newValues);
   }
 
   Future<T> fetch(String key) async {
@@ -42,7 +43,12 @@ class ReadCachingStore<T> implements FirebaseStreamCache<T> {
     return value;
   }
 
-  // Future<T> patch(String key, Map<String, dynamic> updateFields) async {}
+  Future<T> patch(String key, Map<String, dynamic> updateFields) async {
+    await _checkOnline();
+    final value = await store.update(key, updateFields);
+    await _boxAwait(box.put(key, value));
+    return value;
+  }
 
   Future<T> transaction(String key, TransactionCallback<T> transaction) async {
     await _checkOnline();
@@ -64,7 +70,7 @@ class ReadCachingStore<T> implements FirebaseStreamCache<T> {
     final stream =
         await (filter != null ? store.streamQuery(filter) : store.streamAll());
     return stream.listen(
-      (event) => box.put(event.key, event.value),
+      _handleStreamEvent,
       onError: onError,
       onDone: onDone,
       cancelOnError: cancelOnError,
@@ -85,7 +91,7 @@ class ReadCachingStore<T> implements FirebaseStreamCache<T> {
       final filter = onRenewFilter != null ? (await onRenewFilter()) : null;
       return filter != null ? store.streamQuery(filter) : store.streamAll();
     }).listen(
-      (event) => box.put(event.key, event.value),
+      _handleStreamEvent,
       onError: onError,
       onDone: onDone,
       cancelOnError: cancelOnError,
@@ -155,9 +161,16 @@ class ReadCachingStore<T> implements FirebaseStreamCache<T> {
   @protected
   FutureOr<bool> isOnline() => true;
 
-  @internal
-  @override
-  Future<void> reset(Map<String, T> data) async {
+  Future _checkOnline() async {
+    if (!await isOnline()) {
+      throw OfflineException();
+    }
+  }
+
+  Future<void> _boxAwait(Future<void> future) =>
+      awaitBoxOperations ? future : Future<void>.value();
+
+  Future<void> _reset(Map<String, T> data) async {
     switch (reloadStrategy) {
       case ReloadStrategy.clear:
         final fClear = box.clear();
@@ -186,39 +199,13 @@ class ReadCachingStore<T> implements FirebaseStreamCache<T> {
     }
   }
 
-  @internal
-  @override
-  Future<void> set(String key, T value) => _boxAwait(box.put(key, value));
-
-  @internal
-  @override
-  Future<T> update(
-    String key,
-    T Function(T value) update,
-    void Function() ifAbsent,
-  ) async {
-    if (box.containsKey(key)) {
-      final current = box.get(key);
-      final updated = update(current);
-      await _boxAwait(box.put(key, updated));
-      return updated;
-    } else {
-      ifAbsent();
-      throw StateError('ifAbsent must throw');
-    }
-  }
-
-  @internal
-  @override
-  Iterable<MapEntry<String, T>> get entries =>
-      box.toMap().cast<String, T>().entries;
-
-  Future _checkOnline() async {
-    if (!await isOnline()) {
-      throw OfflineException();
-    }
-  }
-
-  Future<void> _boxAwait(Future<void> future) =>
-      awaitBoxOperations ? future : Future<void>.value();
+  Future<void> _handleStreamEvent(StoreEvent<T> event) => event.when(
+        reset: (data) => _reset(data),
+        put: (key, value) => _boxAwait(box.put(key, value)),
+        delete: (key) => _boxAwait(box.delete(key)),
+        patch: (key, value) => _boxAwait(box.put(
+          key,
+          value.apply(box.get(key)),
+        )),
+      );
 }

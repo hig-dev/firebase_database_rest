@@ -8,6 +8,7 @@ import 'filter.dart';
 import 'models/post_response.dart';
 import 'models/stream_event.dart';
 import 'rest_api.dart';
+import 'store_event.dart';
 import 'transaction_result.dart';
 
 class PatchOnNullError extends Error {
@@ -34,20 +35,6 @@ typedef PatchDataCallback<T> = T Function(
   T data,
   Map<String, dynamic> updatedFields,
 );
-
-abstract class FirebaseStreamCache<T> {
-  const FirebaseStreamCache._();
-
-  Iterable<MapEntry<String, T>> get entries;
-
-  Future<void> reset(Map<String, T> data);
-  Future<void> set(String key, T value);
-  Future<T> update(
-    String key,
-    T Function(T value) update,
-    @alwaysThrows void Function() ifAbsent, // TODO use never
-  );
-}
 
 abstract class FirebaseStore<T> {
   static const loggingTag = 'firebase_database_rest.FirebaseStore';
@@ -209,13 +196,11 @@ abstract class FirebaseStore<T> {
     );
   }
 
-  Future<Stream<MapEntry<String, T>>> streamAll([
-    FirebaseStreamCache<T> cache,
-  ]) async {
+  Future<Stream<StoreEvent<T>>> streamAll() async {
     final stream = await restApi.stream(
       path: _path(),
     );
-    return _transformKeyValuePairs(stream, cache ?? _MapStreamCache());
+    return _transformKeyValuePairs(stream);
   }
 
   Future<Stream<T>> streamEntry(String key) async {
@@ -225,15 +210,12 @@ abstract class FirebaseStore<T> {
     return _transformValues(stream);
   }
 
-  Future<Stream<MapEntry<String, T>>> streamQuery(
-    Filter filter, [
-    FirebaseStreamCache<T> cache,
-  ]) async {
+  Future<Stream<StoreEvent<T>>> streamQuery(Filter filter) async {
     final stream = await restApi.stream(
       path: _path(),
       filter: filter,
     );
-    return _transformKeyValuePairs(stream, cache ?? _MapStreamCache());
+    return _transformKeyValuePairs(stream);
   }
 
   @protected
@@ -256,24 +238,23 @@ abstract class FirebaseStore<T> {
         ),
       );
 
-  Stream<MapEntry<String, T>> _transformKeyValuePairs(
-    Stream<StreamEvent> stream,
-    FirebaseStreamCache<T> cache,
-  ) async* {
+  Stream<StoreEvent<T>> _transformKeyValuePairs(
+      Stream<StreamEvent> stream) async* {
     final subPathRegexp = RegExp(r'^\/([^\/]+)$');
 
     await for (final event in stream) {
       yield* event.when(
         put: (path, dynamic data) async* {
           if (path == '/') {
-            await cache.reset(_mapTransform(data));
-            yield* Stream.fromIterable(cache.entries);
+            yield StoreEvent.reset(_mapTransform(data));
           } else {
             final match = subPathRegexp.firstMatch(path);
             if (match != null) {
-              final entry = MapEntry(match[1], dataFromJson(data));
-              await cache.set(entry.key, entry.value);
-              yield entry;
+              if (data != null) {
+                yield StoreEvent.put(match[1], dataFromJson(data));
+              } else {
+                yield StoreEvent.delete(match[1]);
+              }
             } else {
               _logPathTooDeep(path);
             }
@@ -282,13 +263,13 @@ abstract class FirebaseStore<T> {
         patch: (path, dynamic data) async* {
           final match = subPathRegexp.firstMatch(path);
           if (match != null) {
-            final key = match[1];
-            final updated = await cache.update(
-              key,
-              (value) => patchData(value, data as Map<String, dynamic>),
-              () => throw PatchOnNullError(key),
+            yield StoreEvent.patch(
+              match[1],
+              _StorePatchSet(
+                this,
+                data as Map<String, dynamic>,
+              ),
             );
-            yield MapEntry(key, updated);
           } else {
             _logPathTooDeep(path);
           }
@@ -376,34 +357,34 @@ class _CallbackFirebaseStore<T> extends FirebaseStore<T> {
       onPatchData(data, updatedFields);
 }
 
-class _MapStreamCache<T> implements FirebaseStreamCache<T> {
-  Map<String, T> cache = {};
+class _StorePatchSet<T> implements PatchSet<T> {
+  final FirebaseStore<T> store;
+  final Map<String, dynamic> data;
+
+  const _StorePatchSet(this.store, this.data);
 
   @override
-  Future<void> reset(Map<String, T> data) {
-    cache = data;
-    return Future.value();
+  T apply(T value) => store.patchData(value, data);
+
+  @override
+  String toString() => 'PatchSet($data)';
+
+  @override
+  bool operator ==(dynamic other) {
+    if (identical(this, other)) {
+      return true;
+    }
+    if (other is! _StorePatchSet<T>) {
+      return false;
+    }
+    return store == other.store &&
+        (identical(data, other.data) ||
+            const DeepCollectionEquality().equals(data, other.data));
   }
 
   @override
-  Future<void> set(String key, T value) {
-    cache[key] = value;
-    return Future.value();
-  }
-
-  @override
-  Future<T> update(
-    String key,
-    T Function(T value) update,
-    void Function() ifAbsent,
-  ) async =>
-      Future.value(
-        cache.update(key, update, ifAbsent: () {
-          ifAbsent();
-          throw StateError('ifAbsent must throw');
-        }),
-      );
-
-  @override
-  Iterable<MapEntry<String, T>> get entries => cache.entries;
+  int get hashCode =>
+      runtimeType.hashCode ^
+      store.hashCode ^
+      const DeepCollectionEquality().hash(data);
 }
