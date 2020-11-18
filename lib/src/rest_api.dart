@@ -283,7 +283,7 @@ class RestApi {
       );
     } else {
       return DbResponse(
-        data: json.decode(response.body) as Map<String, dynamic>,
+        data: json.decode(response.body),
         eTag: tag,
       );
     }

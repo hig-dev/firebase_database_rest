@@ -59,14 +59,10 @@ class ReadCachingStore<T> {
 
   Future<StreamSubscription<void>> stream({
     Filter filter,
-    bool clearCache = true,
     Function onError,
     void Function() onDone,
     bool cancelOnError = true,
   }) async {
-    if (clearCache) {
-      box.clear();
-    }
     final stream =
         await (filter != null ? store.streamQuery(filter) : store.streamAll());
     return stream.listen(

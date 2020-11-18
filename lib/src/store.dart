@@ -11,6 +11,13 @@ import 'rest_api.dart';
 import 'store_event.dart';
 import 'transaction_result.dart';
 
+class ETagReceiver {
+  String _eTag;
+
+  bool get hasETag => _eTag != null;
+  String get eTag => _eTag;
+}
+
 class PatchOnNullError extends Error {
   final String key;
 
@@ -95,11 +102,15 @@ abstract class FirebaseStore<T> {
         loggingCategory: loggingCategory,
       );
 
-  Future<List<String>> keys() async {
+  Future<List<String>> keys([ETagReceiver eTagReceiver]) async {
     final response = await restApi.get(
       path: _path(),
       shallow: true,
+      eTag: eTagReceiver != null,
     );
+    if (eTagReceiver != null) {
+      eTagReceiver._eTag = response.eTag;
+    }
     return (response.data as Map<String, dynamic>).keys.toList();
   }
 
@@ -110,10 +121,14 @@ abstract class FirebaseStore<T> {
     return _mapTransform(response.data);
   }
 
-  Future<T> read(String key) async {
+  Future<T> read(String key, [ETagReceiver eTagReceiver]) async {
     final response = await restApi.get(
       path: _path(key),
+      eTag: eTagReceiver != null,
     );
+    if (eTagReceiver != null) {
+      eTagReceiver._eTag = response.eTag;
+    }
     return dataFromJson(response.data);
   }
 
@@ -164,10 +179,27 @@ abstract class FirebaseStore<T> {
     return _mapTransform(response.data);
   }
 
+  Future<List<String>> queryKeys(
+    Filter filter, [
+    ETagReceiver eTagReceiver,
+  ]) async {
+    final response = await restApi.get(
+      path: _path(),
+      filter: filter,
+      shallow: true,
+      eTag: eTagReceiver != null,
+    );
+    if (eTagReceiver != null) {
+      eTagReceiver._eTag = response.eTag;
+    }
+    return (response.data as Map<String, dynamic>).keys.toList();
+  }
+
   Future<T> transaction(
     String key,
     TransactionCallback<T> transaction, {
     bool silent = false,
+    ETagReceiver eTagReceiver,
   }) async {
     final getResponse = await restApi.get(
       path: _path(key),
@@ -181,7 +213,11 @@ abstract class FirebaseStore<T> {
           path: _path(key),
           printMode: silent ? PrintMode.silent : null,
           ifMatch: getResponse.eTag,
+          eTag: eTagReceiver != null,
         );
+        if (eTagReceiver != null) {
+          eTagReceiver._eTag = putResponse.eTag;
+        }
         return silent ? null : dataFromJson(putResponse.data);
       },
       delete: () async {
@@ -189,7 +225,11 @@ abstract class FirebaseStore<T> {
           path: _path(key),
           printMode: silent ? PrintMode.silent : null,
           ifMatch: getResponse.eTag,
+          eTag: eTagReceiver != null,
         );
+        if (eTagReceiver != null) {
+          eTagReceiver._eTag = deleteResponse.eTag;
+        }
         return silent ? null : dataFromJson(deleteResponse.data);
       },
       abort: () => null,
@@ -201,6 +241,14 @@ abstract class FirebaseStore<T> {
       path: _path(),
     );
     return _transformKeyValuePairs(stream);
+  }
+
+  Future<Stream<String>> streamKeys() async {
+    final stream = await restApi.stream(
+      path: _path(),
+      shallow: true,
+    );
+    return _transformKeys(stream);
   }
 
   Future<Stream<T>> streamEntry(String key) async {
@@ -216,6 +264,15 @@ abstract class FirebaseStore<T> {
       filter: filter,
     );
     return _transformKeyValuePairs(stream);
+  }
+
+  Future<Stream<String>> streamQueryKeys(Filter filter) async {
+    final stream = await restApi.stream(
+      path: _path(),
+      filter: filter,
+      shallow: true,
+    );
+    return _transformKeys(stream);
   }
 
   @protected
@@ -239,7 +296,8 @@ abstract class FirebaseStore<T> {
       );
 
   Stream<StoreEvent<T>> _transformKeyValuePairs(
-      Stream<StreamEvent> stream) async* {
+    Stream<StreamEvent> stream,
+  ) async* {
     final subPathRegexp = RegExp(r'^\/([^\/]+)$');
 
     await for (final event in stream) {
@@ -270,6 +328,36 @@ abstract class FirebaseStore<T> {
                 data as Map<String, dynamic>,
               ),
             );
+          } else {
+            _logPathTooDeep(path);
+          }
+        },
+        authRevoked: () => throw AuthRevokedException(),
+      );
+    }
+  }
+
+  Stream<String> _transformKeys(Stream<StreamEvent> stream) async* {
+    final subPathRegexp = RegExp(r'^\/([^\/]+)$');
+
+    await for (final event in stream) {
+      yield* event.when(
+        put: (path, dynamic data) async* {
+          if (path == '/') {
+            yield null;
+          } else {
+            final match = subPathRegexp.firstMatch(path);
+            if (match != null) {
+              yield match[1];
+            } else {
+              _logPathTooDeep(path);
+            }
+          }
+        },
+        patch: (path, dynamic data) async* {
+          final match = subPathRegexp.firstMatch(path);
+          if (match != null) {
+            yield match[1];
           } else {
             _logPathTooDeep(path);
           }
