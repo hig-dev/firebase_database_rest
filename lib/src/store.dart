@@ -5,6 +5,7 @@ import 'package:logging/logging.dart';
 
 import 'auth_revoked_exception.dart';
 import 'filter.dart';
+import 'models/db_response.dart';
 import 'models/post_response.dart';
 import 'models/stream_event.dart';
 import 'rest_api.dart';
@@ -104,16 +105,16 @@ abstract class FirebaseStore<T> {
       shallow: true,
       eTag: eTagReceiver != null,
     );
-    if (eTagReceiver != null) {
-      eTagReceiver._eTag = response.eTag;
-    }
-    return (response.data as Map<String, dynamic>).keys.toList();
+    _applyETag(eTagReceiver, response);
+    return (response.data as Map<String, dynamic>)?.keys?.toList() ?? [];
   }
 
-  Future<Map<String, T>> all() async {
+  Future<Map<String, T>> all([ETagReceiver eTagReceiver]) async {
     final response = await restApi.get(
       path: _path(),
+      eTag: eTagReceiver != null,
     );
+    _applyETag(eTagReceiver, response);
     return _mapTransform(response.data);
   }
 
@@ -122,26 +123,35 @@ abstract class FirebaseStore<T> {
       path: _path(key),
       eTag: eTagReceiver != null,
     );
-    if (eTagReceiver != null) {
-      eTagReceiver._eTag = response.eTag;
-    }
+    _applyETag(eTagReceiver, response);
     return dataFromJson(response.data);
   }
 
-  Future<T> write(String key, T data, {bool silent = false}) async {
+  Future<T> write(
+    String key,
+    T data, {
+    bool silent = false,
+    String eTag,
+    ETagReceiver eTagReceiver,
+  }) async {
     final response = await restApi.put(
       dataToJson(data),
       path: _path(key),
       printMode: silent ? PrintMode.silent : null,
+      ifMatch: eTag,
+      eTag: eTagReceiver != null,
     );
+    _applyETag(eTagReceiver, response);
     return silent ? null : dataFromJson(response.data);
   }
 
-  Future<String> create(T data) async {
+  Future<String> create(T data, [ETagReceiver eTagReceiver]) async {
     final response = await restApi.post(
       dataToJson(data),
       path: _path(),
+      eTag: eTagReceiver != null,
     );
+    _applyETag(eTagReceiver, response);
     final result = PostResponse.fromJson(response.data as Map<String, dynamic>);
     return result.name;
   }
@@ -159,19 +169,32 @@ abstract class FirebaseStore<T> {
     return silent ? null : dataFromJson(response.data);
   }
 
-  Future<T> delete(String key, {bool silent = false}) async {
+  Future<T> delete(
+    String key, {
+    bool silent = false,
+    String eTag,
+    ETagReceiver eTagReceiver,
+  }) async {
     final response = await restApi.delete(
       path: _path(key),
       printMode: silent ? PrintMode.silent : null,
+      ifMatch: eTag,
+      eTag: eTagReceiver != null,
     );
+    _applyETag(eTagReceiver, response);
     return silent ? null : dataFromJson(response.data);
   }
 
-  Future<Map<String, T>> query(Filter filter) async {
+  Future<Map<String, T>> query(
+    Filter filter, [
+    ETagReceiver eTagReceiver,
+  ]) async {
     final response = await restApi.get(
       path: _path(),
       filter: filter,
+      eTag: eTagReceiver != null,
     );
+    _applyETag(eTagReceiver, response);
     return _mapTransform(response.data);
   }
 
@@ -185,10 +208,8 @@ abstract class FirebaseStore<T> {
       shallow: true,
       eTag: eTagReceiver != null,
     );
-    if (eTagReceiver != null) {
-      eTagReceiver._eTag = response.eTag;
-    }
-    return (response.data as Map<String, dynamic>).keys.toList();
+    _applyETag(eTagReceiver, response);
+    return (response.data as Map<String, dynamic>)?.keys?.toList() ?? [];
   }
 
   Future<FirebaseTransaction<T>> transaction(
@@ -250,10 +271,10 @@ abstract class FirebaseStore<T> {
   }
 
   @protected
-  T dataFromJson(dynamic json);
+  T dataFromJson(dynamic json); // can be null
 
   @protected
-  dynamic dataToJson(T data);
+  dynamic dataToJson(T data); // can be null
 
   @protected
   T patchData(T data, Map<String, dynamic> updatedFields);
@@ -261,8 +282,14 @@ abstract class FirebaseStore<T> {
   String _path([String key]) =>
       (key != null ? [...subPaths, key] : subPaths).join('/');
 
+  void _applyETag(ETagReceiver eTagReceiver, DbResponse response) {
+    if (eTagReceiver != null) {
+      eTagReceiver._eTag = response.eTag;
+    }
+  }
+
   Map<String, T> _mapTransform(dynamic data) =>
-      (data as Map<String, dynamic>).map(
+      (data as Map<String, dynamic>)?.map(
         (key, dynamic value) => MapEntry(
           key,
           dataFromJson(value),
@@ -299,7 +326,7 @@ abstract class FirebaseStore<T> {
               match[1],
               _StorePatchSet(
                 this,
-                data as Map<String, dynamic>,
+                data as Map<String, dynamic> ?? <String, dynamic>{},
               ),
             );
           } else {
@@ -358,7 +385,10 @@ abstract class FirebaseStore<T> {
             if (currentValue == null) {
               throw PatchOnNullError();
             }
-            return patchData(currentValue, data as Map<String, dynamic>);
+            return patchData(
+              currentValue,
+              data as Map<String, dynamic> ?? <String, dynamic>{},
+            );
           } else {
             _logPathTooDeep(path);
             return null;
@@ -458,17 +488,15 @@ class _StoreTransaction<T> implements FirebaseTransaction<T> {
   final String key;
 
   @override
-  T value;
+  final T value;
 
   @override
-  bool modified = false;
-
-  @override
-  bool get deleted => value == null;
-
   final String eTag;
+
   final bool silent;
   final ETagReceiver eTagReceiver;
+
+  bool _committed = false;
 
   _StoreTransaction({
     @required this.store,
@@ -480,49 +508,36 @@ class _StoreTransaction<T> implements FirebaseTransaction<T> {
   });
 
   @override
-  void update(T value) {
-    modified = true;
-    this.value = value;
+  Future<T> commitUpdate(T data) async {
+    _assertNotCommitted();
+    final response = await store.restApi.put(
+      store.dataToJson(data),
+      path: store._path(key),
+      printMode: silent ? PrintMode.silent : null,
+      ifMatch: eTag,
+      eTag: eTagReceiver != null,
+    );
+    store._applyETag(eTagReceiver, response);
+    return silent ? null : store.dataFromJson(response.data);
   }
 
   @override
-  void delete() {
-    value = null;
-    modified = true;
+  Future<void> commitDelete() async {
+    _assertNotCommitted();
+    final response = await store.restApi.delete(
+      path: store._path(key),
+      printMode: PrintMode.silent,
+      ifMatch: eTag,
+      eTag: eTagReceiver != null,
+    );
+    store._applyETag(eTagReceiver, response);
   }
 
-  @override
-  Future<T> commit() async {
-    if (!modified) {
-      if (eTagReceiver != null) {
-        eTagReceiver._eTag = eTag;
-      }
-      return silent ? null : value;
-    }
-
-    if (value != null) {
-      final putResponse = await store.restApi.put(
-        store.dataToJson(value),
-        path: store._path(key),
-        printMode: silent ? PrintMode.silent : null,
-        ifMatch: eTag,
-        eTag: eTagReceiver != null,
-      );
-      if (eTagReceiver != null) {
-        eTagReceiver._eTag = putResponse.eTag;
-      }
-      return silent ? null : store.dataFromJson(putResponse.data);
+  void _assertNotCommitted() {
+    if (_committed) {
+      throw AlreadyComittedError();
     } else {
-      final deleteResponse = await store.restApi.delete(
-        path: store._path(key),
-        printMode: silent ? PrintMode.silent : null,
-        ifMatch: eTag,
-        eTag: eTagReceiver != null,
-      );
-      if (eTagReceiver != null) {
-        eTagReceiver._eTag = deleteResponse.eTag;
-      }
-      return silent ? null : store.dataFromJson(deleteResponse.data);
+      _committed = true;
     }
   }
 }

@@ -3,217 +3,311 @@ import 'dart:async';
 import 'package:hive/hive.dart';
 import 'package:meta/meta.dart';
 
+import 'conflict_resolution.dart';
 import 'filter.dart';
-import 'read_caching_store.dart';
+import 'models/db_exception.dart';
+import 'read_caching_store.dart' show ReloadStrategy;
+import 'rest_api.dart';
 import 'store.dart';
+import 'store_entry.dart';
+import 'transaction.dart';
 
-class _StoreEntry<T> extends HiveObject {
-  String eTag;
-  T value;
+enum SyncDirection {
+  uploadOnly,
+  downloadOnly,
+  fullSync,
 }
 
-class StoreEntryTypeAdapter<T> extends TypeAdapter<_StoreEntry<T>> {
-  @override
-  final int typeId;
+typedef _UpdateFn<T> = FutureOr<StoreEntry<T>> Function(StoreEntry<T> entry);
 
-  StoreEntryTypeAdapter({
-    @required this.typeId,
-  });
-
-  @override
-  _StoreEntry<T> read(BinaryReader reader) {
-    return _StoreEntry()
-      ..eTag = reader.readString()
-      ..value = reader.read() as T;
-  }
-
-  @override
-  void write(BinaryWriter writer, _StoreEntry<T> obj) {
-    writer
-      ..writeString(obj.eTag)
-      ..write(obj.value, writeTypeId: true);
-  }
-}
-
-abstract class WriteCachingStore<T> {
-  static const _boxIndexKey = '__WriteCachingStore_index_key__';
-
+abstract class WriteCachingStoreBase<T> {
   final FirebaseStore<T> store;
-  final Box<_StoreEntry<T>> box;
+  BoxBase<StoreEntry<T>> get box;
 
+  bool keepDeletedEntries = false;
   bool awaitBoxOperations = false;
   ReloadStrategy reloadStrategy = ReloadStrategy.compareValue;
 
-  WriteCachingStore(this.store, this.box);
+  WriteCachingStoreBase(this.store);
 
-  Future<void> reload([Filter filter]) async {
-    await _checkOnline();
-
-    final eTagReceiver = ETagReceiver();
-    final keys = await (filter != null
-        ? store.queryKeys(filter, eTagReceiver)
-        : store.keys(eTagReceiver));
-    final currentETag = box.get(_boxIndexKey)?.eTag;
-    if (eTagReceiver.eTag == currentETag) {
-      return;
-    }
-
-    final entries = await Stream.fromIterable(keys).asyncMap((key) async {
-      final eTagReceiver = ETagReceiver();
-      final value = await store.read(key, eTagReceiver);
-      return MapEntry(
-        key,
-        _StoreEntry<T>()
-          ..eTag = eTagReceiver.eTag
-          ..value = value,
-      );
-    }).toList();
-    await _reset(
-      Map.fromEntries(entries),
-      currentETag,
-      eTagReceiver.eTag,
-    );
-  }
-
-  Future<T> fetch(String key) async {
-    await _checkOnline();
-    final eTagReceiver = ETagReceiver();
-    final value = await store.read(key, eTagReceiver);
-    await _boxAwait(box.put(
-      key,
-      _StoreEntry()
-        ..eTag = eTagReceiver.eTag
-        ..value = value,
-    ));
-    return value;
-  }
-
-  Future<T> transaction(String key, TransactionCallback<T> transaction) async {
-    await _checkOnline();
-    final eTagReceiver = ETagReceiver();
-    final value = await store.transaction(
-      key,
-      transaction,
-      eTagReceiver: eTagReceiver,
-    );
-    await _boxAwait(box.put(
-      key,
-      _StoreEntry<T>()
-        ..eTag = eTagReceiver.eTag
-        ..value = value,
-    ));
-    return value;
-  }
-
-  Future<StreamSubscription<void>> stream({
+  Future<void> synchronize({
+    SyncDirection syncDirection = SyncDirection.fullSync,
     Filter filter,
-    Function onError,
-    void Function() onDone,
-    bool cancelOnError = true,
+    bool clearDeleted = true,
   }) async {
-    final stream = await (filter != null
+    final localStream = box.watch();
+    final remoteStream = await (filter != null
         ? store.streamQueryKeys(filter)
         : store.streamKeys());
-    return stream.listen(
-      _handleStreamEvent,
-      onError: onError,
-      onDone: onDone,
-      cancelOnError: cancelOnError,
-    );
   }
+
+  Future<FirebaseTransaction<T>> transaction(String key) async =>
+      _WriteStoreTransaction(
+        store: this,
+        key: key,
+        entry: await _getLocal(key),
+      );
+
+  Future<String> add(T value) async {
+    await _checkOnline();
+    final eTagReceiver = ETagReceiver();
+    final key = await store.create(value, eTagReceiver);
+    await _boxAwait(box.put(
+      key,
+      StoreEntry(
+        value: value,
+        eTag: eTagReceiver.eTag,
+      ),
+    ));
+    return key;
+  }
+
+  Future<int> clear() => box.clear();
+
+  Future<void> close() => box.close();
+
+  Future<void> compact() => box.compact();
+
+  bool containsKey(String key) => box.containsKey(key);
+
+  Future<void> delete(String key) => _update(
+        key,
+        (entry) => entry.copyWith(
+          value: null,
+          modified: true,
+        ),
+      );
+
+  Future<void> deleteFromDisk() => box.deleteFromDisk();
+
+  bool get isEmpty => box.isEmpty;
+
+  bool get isNotEmpty => box.isNotEmpty;
+
+  bool get isOpen => box.isOpen;
+
+  Iterable<String> get keys => box.keys.cast<String>();
+
+  bool get lazy => box.lazy;
+
+  int get length => box.length;
+
+  String get name => box.name;
+
+  String get path => box.path;
+
+  Future<void> put(String key, T value) => _update(
+        key,
+        (entry) => entry.copyWith(
+          value: value,
+          modified: true,
+        ),
+      );
+
+  // TODO use generic event
+  Stream<BoxEvent> watch({String key}) => box.watch(key: key);
 
   @protected
   FutureOr<bool> isOnline();
 
-  Future _checkOnline() async {
+  @protected
+  FutureOr<ConflictResolution<T>> resolveConflict(
+    String key,
+    T local,
+    T remote,
+  );
+
+  Future<void> _checkOnline() async {
     if (!await isOnline()) {
-      throw OfflineException();
+      // throw OfflineException();
     }
   }
 
-  Future<void> _boxAwait(
-    Future<void> future, {
-    String oldKeyTag,
-    String newKeyTag,
-  }) {
-    Future<void> boxOp;
-    if (oldKeyTag != null) {
-      boxOp = () async {
-        await future;
-        final currentKeyTag = box.get(_boxIndexKey)?.eTag;
-        if (currentKeyTag == oldKeyTag) {
-          await box.put(_boxIndexKey, _StoreEntry()..eTag = newKeyTag);
-        } else {
-          await box.delete(_boxIndexKey);
-        }
-      }();
-    } else {
-      boxOp = () async {
-        await future;
-        await box.delete(_boxIndexKey);
-      }();
-    }
-    return awaitBoxOperations ? boxOp : Future<void>.value();
-  }
+  Future<void> _boxAwait(Future<void> future) =>
+      awaitBoxOperations ? future : Future<void>.value();
 
-  Future<void> _reset(
-    Map<String, _StoreEntry<T>> data,
-    String oldkeyTag,
-    String newkeyTag,
-  ) async {
-    switch (reloadStrategy) {
-      case ReloadStrategy.clear:
-        final fClear = box.clear();
-        final fPut = box.putAll(data);
-        await _boxAwait(
-          Future.wait([fClear, fPut]),
-          oldKeyTag: oldkeyTag,
-          newKeyTag: newkeyTag,
-        );
-        break;
-      case ReloadStrategy.compareKey:
-        final oldKeys = box.keys.toSet();
-        oldKeys.remove(_boxIndexKey);
-        final deletedKeys = oldKeys.difference(data.keys.toSet());
-        await _boxAwait(
-          Future.wait([
-            box.putAll(data),
-            box.deleteAll(deletedKeys),
-          ]),
-          oldKeyTag: oldkeyTag,
-          newKeyTag: newkeyTag,
-        );
-        break;
-      case ReloadStrategy.compareValue:
-        final oldKeys = box.keys.toSet();
-        oldKeys.remove(_boxIndexKey);
-        final deletedKeys = oldKeys.difference(data.keys.toSet());
-        data.removeWhere(
-          (key, value) => box.get(key).eTag == value.eTag,
-        );
-        await _boxAwait(
-          Future.wait([
-            box.putAll(data),
-            box.deleteAll(deletedKeys),
-          ]),
-          oldKeyTag: oldkeyTag,
-          newKeyTag: newkeyTag,
-        );
-        break;
-    }
-  }
-
-  Future<void> _handleStreamEvent(String key, [Filter filter]) async {
-    if (key == null) {
-      await reload();
-    }
+  Future<StoreEntry<T>> _getRemote(String key) async {
     final eTagReceiver = ETagReceiver();
     final value = await store.read(key, eTagReceiver);
-    await _boxAwait(box.put(
+    return StoreEntry(
+      value: value,
+      eTag: eTagReceiver.eTag,
+    );
+  }
+
+  Future<void> _handleLocalEvent(BoxEvent event) async {
+    if (event.deleted || event.value == null) {
+      return;
+    }
+
+    final key = event.key as String;
+    final entry = event.value as StoreEntry<T>;
+    if (!entry.modified) {
+      return;
+    }
+
+    // optimistic sync approach
+    try {
+      final eTagReceiver = ETagReceiver();
+      T storeValue;
+      if (entry.value != null) {
+        storeValue = await store.write(
+          key,
+          entry.value,
+          eTag: entry.eTag,
+          eTagReceiver: eTagReceiver,
+        );
+      } else {
+        await store.delete(
+          key,
+          eTag: entry.eTag,
+          eTagReceiver: eTagReceiver,
+          silent: true,
+        );
+      }
+      await box.put(
+        key,
+        entry.copyWith(
+          value: storeValue,
+          eTag: eTagReceiver.eTag,
+          modified: false,
+        ),
+      );
+    } on DbException catch (e) {
+      if (e.statusCode == RestApi.statusCodeETagMismatch) {
+        final remoteEntry = await _getRemote(key);
+        await _resolve(key, entry, remoteEntry);
+      } else {
+        rethrow;
+      }
+    }
+  }
+
+  Future<void> _handleRemoteEvent(String key) async {
+    if (key == null) {
+      // TODO
+    } else {
+      final remoteEntry = await _getRemote(key);
+      final localEntry = await _getLocal(key);
+      if (localEntry.eTag != remoteEntry.eTag) {
+        if (localEntry.modified) {
+          await _resolve(key, localEntry, remoteEntry);
+        } else {
+          await box.put(key, remoteEntry);
+        }
+      }
+    }
+  }
+
+  Future<void> _resolve(
+    String key,
+    StoreEntry<T> local,
+    StoreEntry<T> remote,
+  ) async {
+    final resolution = await resolveConflict(key, local.value, remote.value);
+    final resolvedEntry = resolution.when(
+      local: () => local.copyWith(
+        eTag: remote.eTag,
+        modified: true,
+      ),
+      remote: () => remote.copyWith(
+        modified: false,
+      ),
+      delete: () => StoreEntry(
+        value: null,
+        eTag: remote.eTag,
+        modified: true,
+      ),
+      update: (data) => StoreEntry(
+        value: data,
+        eTag: remote.eTag,
+        modified: true,
+      ),
+    );
+    await box.put(key, resolvedEntry);
+  }
+
+  FutureOr<StoreEntry<T>> _getLocal(String key);
+
+  Future<StoreEntry<T>> _update(String key, _UpdateFn<T> update);
+}
+
+class WriteCachingStore<T> extends WriteCachingStoreBase<T> {
+  @override
+  final Box<StoreEntry<T>> box;
+
+  WriteCachingStore(FirebaseStore<T> store, this.box) : super(store);
+
+  T get(String key, {T defaultValue}) => box.get(key)?.value ?? defaultValue;
+
+  Map<String, T> toMap() => box
+      .toMap()
+      .cast<String, StoreEntry<T>>()
+      .map((key, value) => MapEntry(key, value.value));
+
+  Iterable<T> get values => box.values.map((e) => e.value);
+
+  Iterable<T> valuesBetween({String startKey, String endKey}) =>
+      box.valuesBetween(startKey: startKey, endKey: endKey).map((e) => e.value);
+}
+
+class _WriteStoreTransaction<T> implements FirebaseTransaction<T> {
+  final WriteCachingStoreBase<T> store;
+  final StoreEntry<T> entry;
+
+  @override
+  final String key;
+
+  @override
+  T get value => entry.value;
+
+  @override
+  String get eTag => entry.eTag;
+
+  _WriteStoreTransaction({
+    @required this.store,
+    @required this.key,
+    @required this.entry,
+  });
+
+  @override
+  Future<T> commitUpdate(T data) async {
+    final updated = await store._update(
       key,
-      _StoreEntry<T>()
-        ..eTag = eTagReceiver.eTag
-        ..value = value,
-    ));
+      (entry) {
+        if (entry.eTag == eTag) {
+          return entry.copyWith(
+            value: value,
+            modified: true,
+          );
+        } else {
+          throw const DbException(
+            statusCode: RestApi.statusCodeETagMismatch,
+            error: 'ETag mismatch',
+          );
+        }
+      },
+    );
+    return updated.value;
+  }
+
+  @override
+  Future<void> commitDelete() async {
+    await store._update(
+      key,
+      (entry) {
+        if (entry.eTag == eTag) {
+          return entry.copyWith(
+            value: null,
+            modified: true,
+          );
+        } else {
+          throw const DbException(
+            statusCode: RestApi.statusCodeETagMismatch,
+            error: 'ETag mismatch',
+          );
+        }
+      },
+    );
   }
 }

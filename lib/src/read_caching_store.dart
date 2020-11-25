@@ -101,7 +101,7 @@ abstract class ReadCachingStoreBase<T> {
   Future<String> add(T value) async {
     await _checkOnline();
     final key = await store.create(value);
-    await box.put(key, value);
+    await _boxAwait(box.put(key, value));
     return key;
   }
 
@@ -111,9 +111,9 @@ abstract class ReadCachingStoreBase<T> {
 
   Future<void> compact() => box.compact();
 
-  bool containsKey(covariant String key) => box.containsKey(key);
+  bool containsKey(String key) => box.containsKey(key);
 
-  Future<void> delete(covariant String key) async {
+  Future<void> delete(String key) async {
     await _checkOnline();
     await store.delete(key, silent: true);
     await _boxAwait(box.delete(key));
@@ -129,7 +129,7 @@ abstract class ReadCachingStoreBase<T> {
 
   Iterable<String> get keys => box.keys.cast<String>();
 
-  bool get lazy => box.lazy; // TODO enable
+  bool get lazy => box.lazy;
 
   int get length => box.length;
 
@@ -137,13 +137,14 @@ abstract class ReadCachingStoreBase<T> {
 
   String get path => box.path;
 
-  Future<void> put(covariant String key, T value) async {
+  Future<void> put(String key, T value) async {
     await _checkOnline();
     final savedValue = await store.write(key, value);
     await _boxAwait(box.put(key, savedValue));
   }
 
-  Stream<BoxEvent> watch({covariant String key}) => box.watch(key: key);
+  // TODO use generic event
+  Stream<BoxEvent> watch({String key}) => box.watch(key: key);
 
   @protected
   FutureOr<bool> isOnline() => true;
@@ -173,7 +174,13 @@ abstract class ReadCachingStoreBase<T> {
         ]));
         break;
       case ReloadStrategy.compareValue:
-        await _resetCompare(data);
+        final oldKeys = box.keys.toSet();
+        final deletedKeys = oldKeys.difference(data.keys.toSet());
+        await _filterByValue(data);
+        await _boxAwait(Future.wait([
+          box.putAll(data),
+          box.deleteAll(deletedKeys),
+        ]));
         break;
     }
   }
@@ -185,7 +192,7 @@ abstract class ReadCachingStoreBase<T> {
         patch: (key, value) => _applyPatch(key, value),
       );
 
-  Future<void> _resetCompare(Map<String, T> data);
+  FutureOr<Map<String, T>> _filterByValue(Map<String, T> data);
 
   Future<void> _applyPatch(String key, PatchSet<T> patchSet);
 }
@@ -199,31 +206,21 @@ class ReadCachingStore<T> extends ReadCachingStoreBase<T> {
 
   ReadCachingStore(FirebaseStore<T> store, this.box) : super(store);
 
-  T get(covariant String key, {T defaultValue}) =>
+  T get(String key, {T defaultValue}) =>
       box.get(key, defaultValue: defaultValue);
 
   Map<String, T> toMap() => box.toMap().cast<String, T>();
 
   Iterable<T> get values => box.values;
 
-  Iterable<T> valuesBetween({
-    covariant String startKey,
-    covariant String endKey,
-  }) =>
+  Iterable<T> valuesBetween({String startKey, String endKey}) =>
       box.valuesBetween(startKey: startKey, endKey: endKey);
 
   @override
-  Future<void> _resetCompare(Map<String, T> data) async {
-    final oldKeys = box.keys.toSet();
-    final deletedKeys = oldKeys.difference(data.keys.toSet());
-    data.removeWhere(
+  FutureOr<Map<String, T>> _filterByValue(Map<String, T> data) => data
+    ..removeWhere(
       (key, value) => box.get(key) == value,
     );
-    await _boxAwait(Future.wait([
-      box.putAll(data),
-      box.deleteAll(deletedKeys),
-    ]));
-  }
 
   @override
   Future<void> _applyPatch(String key, PatchSet<T> patchSet) =>
@@ -243,10 +240,15 @@ class LazyReadCachingStore<T> extends ReadCachingStoreBase<T> {
   LazyReadCachingStore(FirebaseStore<T> store, this.box) : super(store);
 
   @override
-  Future<void> _resetCompare(Map<String, T> data) {
-    throw UnsupportedError(
-      'ReloadStrategy.compareValue is not supported by LazyReadCachingStore',
-    );
+  FutureOr<Map<String, T>> _filterByValue(Map<String, T> data) async {
+    final values = <String, T>{};
+    for (final entry in data.entries) {
+      final currentValue = await box.get(entry.key);
+      if (currentValue != entry.value) {
+        values[entry.key] = entry.value;
+      }
+    }
+    return values;
   }
 
   @override
@@ -272,20 +274,20 @@ class _ReadStoreTransaction<T> implements FirebaseTransaction<T> {
   T get value => storeTransaction.value;
 
   @override
-  bool get modified => storeTransaction.modified;
+  String get eTag => storeTransaction.eTag;
 
   @override
-  bool get deleted => storeTransaction.deleted;
+  Future<T> commitDelete() async {
+    await store._checkOnline();
+    await storeTransaction.commitDelete();
+    await store._boxAwait(store.box.delete(key));
+    return null;
+  }
 
   @override
-  void update(T value) => storeTransaction.update(value);
-
-  @override
-  void delete() => storeTransaction.delete();
-
-  @override
-  Future<T> commit() async {
-    final result = await storeTransaction.commit();
+  Future<T> commitUpdate(T data) async {
+    await store._checkOnline();
+    final result = await storeTransaction.commitUpdate(data);
     await store._boxAwait(store.box.put(key, result));
     return result;
   }

@@ -1,15 +1,13 @@
+class AlreadyComittedError extends StateError {
+  AlreadyComittedError() : super('Transaction has already been committed');
+}
+
 abstract class FirebaseTransaction<T> {
   String get key;
-
   T get value;
+  String get eTag;
 
-  bool get modified;
+  Future<T> commitUpdate(T data);
 
-  bool get deleted;
-
-  void update(T value);
-
-  void delete();
-
-  Future<T> commit();
+  Future<void> commitDelete();
 }

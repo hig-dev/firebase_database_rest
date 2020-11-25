@@ -76,6 +76,7 @@ class RestApi {
   static const loggingTag = 'firebase_database_rest.RestApi';
 
   static const serverTimeStamp = {'.sv': 'timestamp'};
+  static const statusCodeETagMismatch = 412;
 
   final Logger _logger;
 
