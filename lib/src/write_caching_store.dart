@@ -12,12 +12,6 @@ import 'store.dart';
 import 'store_entry.dart';
 import 'transaction.dart';
 
-enum SyncDirection {
-  uploadOnly,
-  downloadOnly,
-  fullSync,
-}
-
 typedef _UpdateFn<T> = FutureOr<StoreEntry<T>> Function(StoreEntry<T> entry);
 
 abstract class WriteCachingStoreBase<T> {
@@ -25,20 +19,73 @@ abstract class WriteCachingStoreBase<T> {
   BoxBase<StoreEntry<T>> get box;
 
   bool keepDeletedEntries = false;
-  bool awaitBoxOperations = false;
   ReloadStrategy reloadStrategy = ReloadStrategy.compareValue;
 
   WriteCachingStoreBase(this.store);
 
-  Future<void> synchronize({
-    SyncDirection syncDirection = SyncDirection.fullSync,
+  Future<void> download([Filter filter]) async {
+    final eTagReceiver = ETagReceiver();
+    final remoteKeys = await (filter != null
+        ? store.queryKeys(filter, eTagReceiver)
+        : store.keys(eTagReceiver));
+    final deletedKeys = keys.toSet().difference(remoteKeys.toSet());
+    for (final key in deletedKeys) {
+      final localEntry = await _getLocal(key);
+      if (localEntry.modified) {
+        await _resolve(key, localEntry, const StoreEntry(value: null));
+      } else {
+        await _clearLocal(key);
+      }
+    }
+    for (final key in remoteKeys) {
+      await _downloadEntry(key);
+    }
+  }
+
+  Future<void> upload({bool multipass = true}) async {
+    var hasChanges = false;
+    do {
+      hasChanges = false;
+      for (final key in keys) {
+        final entry = await _getLocal(key);
+        if (entry.modified) {
+          final uploaded = await _uploadEntry(key, entry);
+          hasChanges |= !uploaded;
+        }
+      }
+    } while (multipass && hasChanges);
+  }
+
+  Future<StreamSubscription<void>> syncDownload({
     Filter filter,
-    bool clearDeleted = true,
+    Function onError,
+    void Function() onDone,
+    bool cancelOnError = false,
   }) async {
-    final localStream = box.watch();
-    final remoteStream = await (filter != null
+    final stream = await (filter != null
         ? store.streamQueryKeys(filter)
         : store.streamKeys());
+    return stream.listen(
+      (key) => _handleRemoteEvent(key, filter),
+      onError: onError,
+      onDone: onDone,
+      cancelOnError: cancelOnError,
+    );
+  }
+
+  Future<StreamSubscription<void>> syncUpload({
+    Function onError,
+    void Function() onDone,
+    bool cancelOnError = false,
+  }) async {
+    final subscription = box.watch().listen(
+          _handleLocalEvent,
+          onError: onError,
+          onDone: onDone,
+          cancelOnError: cancelOnError,
+        );
+    await upload(multipass: false);
+    return subscription;
   }
 
   Future<FirebaseTransaction<T>> transaction(String key) async =>
@@ -52,13 +99,13 @@ abstract class WriteCachingStoreBase<T> {
     await _checkOnline();
     final eTagReceiver = ETagReceiver();
     final key = await store.create(value, eTagReceiver);
-    await _boxAwait(box.put(
+    await box.put(
       key,
       StoreEntry(
         value: value,
         eTag: eTagReceiver.eTag,
       ),
-    ));
+    );
     return key;
   }
 
@@ -104,7 +151,7 @@ abstract class WriteCachingStoreBase<T> {
         ),
       );
 
-  // TODO use generic event
+  // TODO use generic event with mapping
   Stream<BoxEvent> watch({String key}) => box.watch(key: key);
 
   @protected
@@ -119,12 +166,9 @@ abstract class WriteCachingStoreBase<T> {
 
   Future<void> _checkOnline() async {
     if (!await isOnline()) {
-      // throw OfflineException();
+      // TODO throw OfflineException();
     }
   }
-
-  Future<void> _boxAwait(Future<void> future) =>
-      awaitBoxOperations ? future : Future<void>.value();
 
   Future<StoreEntry<T>> _getRemote(String key) async {
     final eTagReceiver = ETagReceiver();
@@ -135,66 +179,65 @@ abstract class WriteCachingStoreBase<T> {
     );
   }
 
-  Future<void> _handleLocalEvent(BoxEvent event) async {
-    if (event.deleted || event.value == null) {
-      return;
-    }
+  Future<StoreEntry<T>> _update(String key, _UpdateFn<T> update) async {
+    final updated = await update(await _getLocal(key));
+    await box.put(key, updated);
+    return updated;
+  }
 
-    final key = event.key as String;
-    final entry = event.value as StoreEntry<T>;
-    if (!entry.modified) {
-      return;
+  Future<void> _downloadEntry(String key) async {
+    final remoteEntry = await _getRemote(key);
+    final localEntry = await _getLocal(key);
+    if (localEntry.eTag != remoteEntry.eTag) {
+      if (localEntry.modified) {
+        await _resolve(key, localEntry, remoteEntry);
+      } else {
+        if (remoteEntry.value != null) {
+          await box.put(key, remoteEntry);
+        } else {
+          await _clearLocal(key, remoteEntry.eTag);
+        }
+      }
     }
+  }
 
+  Future<bool> _uploadEntry(String key, StoreEntry<T> entry) async {
+    assert(entry.modified);
     // optimistic sync approach
     try {
-      final eTagReceiver = ETagReceiver();
-      T storeValue;
       if (entry.value != null) {
-        storeValue = await store.write(
+        final eTagReceiver = ETagReceiver();
+        final storeValue = await store.write(
           key,
           entry.value,
           eTag: entry.eTag,
           eTagReceiver: eTagReceiver,
         );
+        await box.put(
+          key,
+          StoreEntry(
+            value: storeValue,
+            eTag: eTagReceiver.eTag,
+          ),
+        );
       } else {
+        final eTagReceiver = ETagReceiver();
         await store.delete(
           key,
           eTag: entry.eTag,
           eTagReceiver: eTagReceiver,
           silent: true,
         );
+        await _clearLocal(key, eTagReceiver.eTag);
       }
-      await box.put(
-        key,
-        entry.copyWith(
-          value: storeValue,
-          eTag: eTagReceiver.eTag,
-          modified: false,
-        ),
-      );
+      return true;
     } on DbException catch (e) {
       if (e.statusCode == RestApi.statusCodeETagMismatch) {
         final remoteEntry = await _getRemote(key);
         await _resolve(key, entry, remoteEntry);
+        return false;
       } else {
         rethrow;
-      }
-    }
-  }
-
-  Future<void> _handleRemoteEvent(String key) async {
-    if (key == null) {
-      // TODO
-    } else {
-      final remoteEntry = await _getRemote(key);
-      final localEntry = await _getLocal(key);
-      if (localEntry.eTag != remoteEntry.eTag) {
-        if (localEntry.modified) {
-          await _resolve(key, localEntry, remoteEntry);
-        } else {
-          await box.put(key, remoteEntry);
-        }
       }
     }
   }
@@ -212,7 +255,7 @@ abstract class WriteCachingStoreBase<T> {
       ),
       remote: () => remote.copyWith(
         modified: false,
-      ),
+      ), // TODO delete local
       delete: () => StoreEntry(
         value: null,
         eTag: remote.eTag,
@@ -227,12 +270,46 @@ abstract class WriteCachingStoreBase<T> {
     await box.put(key, resolvedEntry);
   }
 
-  FutureOr<StoreEntry<T>> _getLocal(String key);
+  Future<void> _clearLocal(String key, [String eTag = RestApi.nullETag]) async {
+    if (keepDeletedEntries) {
+      await box.put(
+        key,
+        StoreEntry(
+          value: null,
+          eTag: eTag,
+          modified: false,
+        ),
+      );
+    } else {
+      await box.delete(key);
+    }
+  }
 
-  Future<StoreEntry<T>> _update(String key, _UpdateFn<T> update);
+  Future<void> _handleRemoteEvent(String key, [Filter filter]) async {
+    if (key == null) {
+      await download(filter);
+    } else {
+      await _downloadEntry(key);
+    }
+  }
+
+  Future<void> _handleLocalEvent(BoxEvent event) async {
+    if (event.deleted || event.value == null) {
+      return;
+    }
+
+    final entry = event.value as StoreEntry<T>;
+    if (!entry.modified) {
+      return;
+    }
+
+    await _uploadEntry(event.key as String, entry);
+  }
+
+  FutureOr<StoreEntry<T>> _getLocal(String key);
 }
 
-class WriteCachingStore<T> extends WriteCachingStoreBase<T> {
+abstract class WriteCachingStore<T> extends WriteCachingStoreBase<T> {
   @override
   final Box<StoreEntry<T>> box;
 
@@ -249,6 +326,12 @@ class WriteCachingStore<T> extends WriteCachingStoreBase<T> {
 
   Iterable<T> valuesBetween({String startKey, String endKey}) =>
       box.valuesBetween(startKey: startKey, endKey: endKey).map((e) => e.value);
+
+  @override
+  FutureOr<StoreEntry<T>> _getLocal(String key) => box.get(
+        key,
+        defaultValue: const StoreEntry(value: null),
+      );
 }
 
 class _WriteStoreTransaction<T> implements FirebaseTransaction<T> {

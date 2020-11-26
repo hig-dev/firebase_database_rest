@@ -2,6 +2,7 @@ import 'dart:math';
 
 import 'package:firebase_auth_rest/firebase_auth_rest.dart';
 import 'package:firebase_database_rest/src/rest_api.dart';
+import 'package:firebase_database_rest/src/store.dart';
 import 'package:http/http.dart';
 import 'package:logging/logging.dart';
 import 'package:test/test.dart';
@@ -50,23 +51,27 @@ void main() {
   });
 
   test('setup and teardown work as expected', () async {
-    final stream = await sut.stream();
+    final stream = await sut.stream(shallow: true);
     final sub = stream.listen((event) => print(event));
 
     try {
       await Future<void>.delayed(const Duration(seconds: 3));
 
-      print(await sut.put(42, path: 'live'));
+      print(await sut.put(42, path: 'live', eTag: true));
       await Future<void>.delayed(const Duration(seconds: 3));
       print(await sut.put(
         {
-          'begin': false,
-          'end': true,
+          'begin': 42,
+          'end': {
+            'a': 'yes',
+            'b': [1.0, 1.4, 1.8],
+          },
         },
         path: 'death',
+        eTag: true,
       ));
       await Future<void>.delayed(const Duration(seconds: 3));
-      print(await sut.delete(path: 'death'));
+      print(await sut.delete(path: 'death', eTag: true));
       await Future<void>.delayed(const Duration(seconds: 3));
       print('before');
     } finally {

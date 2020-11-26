@@ -2,6 +2,8 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:hive/hive.dart';
 import 'package:meta/meta.dart';
 
+import 'rest_api.dart';
+
 part 'store_entry.freezed.dart';
 part 'store_entry.g.dart';
 
@@ -10,7 +12,7 @@ abstract class StoreEntry<T> with _$StoreEntry<T> {
   @HiveType(typeId: 223, adapterName: '_StoreEntryAdapterRaw')
   const factory StoreEntry({
     @required @nullable @HiveField(0) T value,
-    @HiveField(1) String eTag,
+    @Default(RestApi.nullETag) @HiveField(1) String eTag,
     @Default(false) @HiveField(2) bool modified,
   }) = _StoreEntry;
 

@@ -65,7 +65,7 @@ abstract class ReadCachingStoreBase<T> {
     Filter filter,
     Function onError,
     void Function() onDone,
-    bool cancelOnError = true,
+    bool cancelOnError = false,
   }) async {
     final stream =
         await (filter != null ? store.streamQuery(filter) : store.streamAll());
@@ -143,7 +143,7 @@ abstract class ReadCachingStoreBase<T> {
     await _boxAwait(box.put(key, savedValue));
   }
 
-  // TODO use generic event
+  // TODO use generic event with mapping
   Stream<BoxEvent> watch({String key}) => box.watch(key: key);
 
   @protected

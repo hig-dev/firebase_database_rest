@@ -77,6 +77,7 @@ class RestApi {
 
   static const serverTimeStamp = {'.sv': 'timestamp'};
   static const statusCodeETagMismatch = 412;
+  static const nullETag = 'null_etag';
 
   final Logger _logger;
 
@@ -273,7 +274,7 @@ class RestApi {
     Response response,
     bool eTag,
   ) {
-    final tag = eTag ? response.headers['ETag'] : null;
+    final tag = eTag ? response.headers['etag'] : null;
     if (response.statusCode >= 300) {
       throw DbException.fromJson(
         json.decode(response.body) as Map<String, dynamic>,
