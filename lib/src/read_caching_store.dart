@@ -5,6 +5,7 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:hive/hive.dart';
 
 import 'auto_renew_stream.dart';
+import 'box_forwarding.dart';
 import 'filter.dart';
 import 'generic_box_event.dart';
 import 'store.dart';
@@ -22,45 +23,68 @@ class OfflineException implements Exception {
   String toString() => 'The operation cannot be executed - device is offline';
 }
 
-abstract class ReadCachingStoreBase<T> {
-  final FirebaseStore<T> store;
+class ReadOnlyBoxError extends UnsupportedError {
+  ReadOnlyBoxError(String method)
+      : super('"$method" cannot be called on a read-only box');
+}
 
+abstract class ReadFireBoxBase<T> extends BoxBaseProxy<T>
+    with BoxForward<T>
+    implements BoxBase<T> {
+  final FirebaseStore<T> firebaseStore;
+
+  ReadFireBoxBase(this.firebaseStore);
+
+  @override
   BoxBase<T> get box;
 
   bool get awaitBoxOperations;
 
   ReloadStrategy reloadStrategy = ReloadStrategy.compareKey;
 
-  ReadCachingStoreBase(this.store);
+  @protected
+  FutureOr<bool> isOnline() => true;
 
   Future<void> reload([Filter filter]) async {
-    await _checkOnline();
-    final newValues =
-        await (filter != null ? store.query(filter) : store.all());
+    final newValues = await (filter != null
+        ? firebaseStore.query(filter)
+        : firebaseStore.all());
     await _reset(newValues);
   }
 
   Future<T> fetch(String key) async {
-    await _checkOnline();
-    final value = await store.read(key);
+    final value = await firebaseStore.read(key);
     await _boxAwait(box.put(key, value));
     return value;
+  }
+
+  Future<String> create(T value) async {
+    final key = await firebaseStore.create(value);
+    await _boxAwait(box.put(key, value));
+    return key;
+  }
+
+  Future<void> store(String key, T value) async {
+    final savedValue = await firebaseStore.write(key, value);
+    await _boxAwait(box.put(key, savedValue));
   }
 
   Future<T> patch(String key, Map<String, dynamic> updateFields) async {
-    await _checkOnline();
-    final value = await store.update(key, updateFields);
+    final value = await firebaseStore.update(key, updateFields);
     await _boxAwait(box.put(key, value));
     return value;
   }
 
-  Future<FirebaseTransaction<T>> transaction(String key) async {
-    await _checkOnline();
-    return _ReadStoreTransaction(
-      this,
-      await store.transaction(key),
-    );
+  Future<void> remove(String key) async {
+    await firebaseStore.delete(key, silent: true);
+    await _boxAwait(box.delete(key));
   }
+
+  Future<FirebaseTransaction<T>> transaction(String key) async =>
+      _ReadFireBoxTransaction(
+        this,
+        await firebaseStore.transaction(key),
+      );
 
   Future<StreamSubscription<void>> stream({
     Filter filter,
@@ -68,8 +92,9 @@ abstract class ReadCachingStoreBase<T> {
     void Function() onDone,
     bool cancelOnError = false,
   }) async {
-    final stream =
-        await (filter != null ? store.streamQuery(filter) : store.streamAll());
+    final stream = await (filter != null
+        ? firebaseStore.streamQuery(filter)
+        : firebaseStore.streamAll());
     return stream.listen(
       _handleStreamEvent,
       onError: onError,
@@ -80,86 +105,71 @@ abstract class ReadCachingStoreBase<T> {
 
   StreamSubscription<void> streamRenewed({
     FutureOr<Filter> Function() onRenewFilter,
-    bool clearCache = true,
     Function onError,
     void Function() onDone,
     bool cancelOnError = true,
-  }) {
-    if (clearCache) {
-      box.clear();
-    }
-    return AutoRenewStream(() async {
-      final filter = onRenewFilter != null ? (await onRenewFilter()) : null;
-      return filter != null ? store.streamQuery(filter) : store.streamAll();
-    }).listen(
-      _handleStreamEvent,
-      onError: onError,
-      onDone: onDone,
-      cancelOnError: cancelOnError,
-    );
+  }) =>
+      AutoRenewStream(() async {
+        final filter = onRenewFilter != null ? (await onRenewFilter()) : null;
+        return filter != null
+            ? firebaseStore.streamQuery(filter)
+            : firebaseStore.streamAll();
+      }).listen(
+        _handleStreamEvent,
+        onError: onError,
+        onDone: onDone,
+        cancelOnError: cancelOnError,
+      );
+
+  // BoxBase implementation
+  @override
+  Future<int> add(T value) {
+    throw ReadOnlyBoxError('add');
   }
 
-  Future<String> add(T value) async {
-    await _checkOnline();
-    final key = await store.create(value);
-    await _boxAwait(box.put(key, value));
-    return key;
+  @override
+  Future<Iterable<int>> addAll(Iterable<T> values) {
+    throw ReadOnlyBoxError('addAll');
   }
 
-  Future<int> clear() => box.clear();
-
-  Future<void> close() => box.close();
-
-  Future<void> compact() => box.compact();
-
-  bool containsKey(String key) => box.containsKey(key);
-
-  Future<void> delete(String key) async {
-    await _checkOnline();
-    await store.delete(key, silent: true);
-    await _boxAwait(box.delete(key));
+  @override
+  Future<void> delete(covariant String key) {
+    throw ReadOnlyBoxError('delete');
   }
 
-  Future<void> deleteFromDisk() => box.deleteFromDisk();
-
-  bool get isEmpty => box.isEmpty;
-
-  bool get isNotEmpty => box.isNotEmpty;
-
-  bool get isOpen => box.isOpen;
-
-  Iterable<String> get keys => box.keys.cast<String>();
-
-  bool get lazy => box.lazy;
-
-  int get length => box.length;
-
-  String get name => box.name;
-
-  String get path => box.path;
-
-  Future<void> put(String key, T value) async {
-    await _checkOnline();
-    final savedValue = await store.write(key, value);
-    await _boxAwait(box.put(key, savedValue));
+  @override
+  Future<void> deleteAll(Iterable keys) {
+    throw ReadOnlyBoxError('deleteAll');
   }
 
-  Stream<GenericBoxEvent<String, T>> watch({String key}) async* {
+  @override
+  Future<void> deleteAt(int index) {
+    throw ReadOnlyBoxError('deleteAt');
+  }
+
+  @override
+  Future<void> put(covariant String key, T value) {
+    throw ReadOnlyBoxError('put');
+  }
+
+  @override
+  Future<void> putAll(covariant Map<String, T> entries) {
+    throw ReadOnlyBoxError('putAll');
+  }
+
+  @override
+  Future<void> putAt(int index, T value) {
+    throw ReadOnlyBoxError('putAt');
+  }
+
+  @override
+  Stream<GenericBoxEvent<String, T>> watch({covariant String key}) async* {
     await for (final event in box.watch(key: key)) {
       yield GenericBoxEvent(
         key: event.key as String,
         value: event.value as T,
         deleted: event.deleted,
       );
-    }
-  }
-
-  @protected
-  FutureOr<bool> isOnline() => true;
-
-  Future _checkOnline() async {
-    if (!await isOnline()) {
-      throw OfflineException();
     }
   }
 
@@ -205,23 +215,36 @@ abstract class ReadCachingStoreBase<T> {
   Future<void> _applyPatch(String key, PatchSet<T> patchSet);
 }
 
-class ReadCachingStore<T> extends ReadCachingStoreBase<T> {
+class ReadFireBox<T> extends ReadFireBoxBase<T> implements Box<T> {
   @override
   final Box<T> box;
 
   @override
   bool awaitBoxOperations = false;
 
-  ReadCachingStore(FirebaseStore<T> store, this.box) : super(store);
+  ReadFireBox({
+    @required FirebaseStore<T> firebaseStore,
+    @required this.box,
+  }) : super(firebaseStore);
 
-  T get(String key, {T defaultValue}) =>
+  @override
+  T get(covariant String key, {T defaultValue}) =>
       box.get(key, defaultValue: defaultValue);
 
+  @override
+  T getAt(int index) => box.getAt(index);
+
+  @override
   Map<String, T> toMap() => box.toMap().cast<String, T>();
 
+  @override
   Iterable<T> get values => box.values;
 
-  Iterable<T> valuesBetween({String startKey, String endKey}) =>
+  @override
+  Iterable<T> valuesBetween({
+    covariant String startKey,
+    covariant String endKey,
+  }) =>
       box.valuesBetween(startKey: startKey, endKey: endKey);
 
   @override
@@ -238,14 +261,26 @@ class ReadCachingStore<T> extends ReadCachingStoreBase<T> {
       ));
 }
 
-class LazyReadCachingStore<T> extends ReadCachingStoreBase<T> {
+class LazyReadFireBoxBase<T> extends ReadFireBoxBase<T> implements LazyBox<T> {
   @override
   final LazyBox<T> box;
 
   @override
   bool get awaitBoxOperations => true;
 
-  LazyReadCachingStore(FirebaseStore<T> store, this.box) : super(store);
+  LazyReadFireBoxBase({
+    @required FirebaseStore<T> firebaseStore,
+    @required this.box,
+  }) : super(firebaseStore);
+
+  @override
+  Future<T> get(covariant String key, {T defaultValue}) => box.get(
+        key,
+        defaultValue: defaultValue,
+      );
+
+  @override
+  Future<T> getAt(int index) => box.getAt(index);
 
   @override
   FutureOr<Map<String, T>> _filterByValue(Map<String, T> data) async {
@@ -269,11 +304,11 @@ class LazyReadCachingStore<T> extends ReadCachingStoreBase<T> {
   }
 }
 
-class _ReadStoreTransaction<T> implements FirebaseTransaction<T> {
-  final ReadCachingStoreBase<T> store;
+class _ReadFireBoxTransaction<T> implements FirebaseTransaction<T> {
+  final ReadFireBoxBase<T> fireBox;
   final FirebaseTransaction<T> storeTransaction;
 
-  _ReadStoreTransaction(this.store, this.storeTransaction);
+  _ReadFireBoxTransaction(this.fireBox, this.storeTransaction);
 
   @override
   String get key => storeTransaction.key;
@@ -286,17 +321,15 @@ class _ReadStoreTransaction<T> implements FirebaseTransaction<T> {
 
   @override
   Future<T> commitDelete() async {
-    await store._checkOnline();
     await storeTransaction.commitDelete();
-    await store._boxAwait(store.box.delete(key));
+    await fireBox._boxAwait(fireBox.box.delete(key));
     return null;
   }
 
   @override
   Future<T> commitUpdate(T data) async {
-    await store._checkOnline();
     final result = await storeTransaction.commitUpdate(data);
-    await store._boxAwait(store.box.put(key, result));
+    await fireBox._boxAwait(fireBox.box.put(key, result));
     return result;
   }
 }
