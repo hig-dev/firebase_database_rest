@@ -6,6 +6,7 @@ import 'package:hive/hive.dart';
 
 import 'auto_renew_stream.dart';
 import 'filter.dart';
+import 'generic_box_event.dart';
 import 'store.dart';
 import 'store_event.dart';
 import 'transaction.dart';
@@ -143,8 +144,15 @@ abstract class ReadCachingStoreBase<T> {
     await _boxAwait(box.put(key, savedValue));
   }
 
-  // TODO use generic event with mapping
-  Stream<BoxEvent> watch({String key}) => box.watch(key: key);
+  Stream<GenericBoxEvent<String, T>> watch({String key}) async* {
+    await for (final event in box.watch(key: key)) {
+      yield GenericBoxEvent(
+        key: event.key as String,
+        value: event.value as T,
+        deleted: event.deleted,
+      );
+    }
+  }
 
   @protected
   FutureOr<bool> isOnline() => true;

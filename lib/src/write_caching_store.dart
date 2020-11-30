@@ -5,6 +5,7 @@ import 'package:meta/meta.dart';
 
 import 'conflict_resolution.dart';
 import 'filter.dart';
+import 'generic_box_event.dart';
 import 'models/db_exception.dart';
 import 'read_caching_store.dart' show ReloadStrategy;
 import 'rest_api.dart';
@@ -34,7 +35,7 @@ abstract class WriteCachingStoreBase<T> {
       if (localEntry.modified) {
         await _resolve(key, localEntry, const StoreEntry(value: null));
       } else {
-        await _clearLocal(key);
+        await _storeLocal(key);
       }
     }
     for (final key in remoteKeys) {
@@ -84,8 +85,15 @@ abstract class WriteCachingStoreBase<T> {
           onDone: onDone,
           cancelOnError: cancelOnError,
         );
-    await upload(multipass: false);
-    return subscription;
+    try {
+      subscription.pause();
+      await upload(multipass: false);
+      subscription.resume();
+      return subscription;
+    } catch (e) {
+      await subscription.cancel();
+      rethrow;
+    }
   }
 
   Future<FirebaseTransaction<T>> transaction(String key) async =>
@@ -151,8 +159,16 @@ abstract class WriteCachingStoreBase<T> {
         ),
       );
 
-  // TODO use generic event with mapping
-  Stream<BoxEvent> watch({String key}) => box.watch(key: key);
+  Stream<GenericBoxEvent<String, T>> watch({String key}) async* {
+    await for (final event in box.watch(key: key)) {
+      final entry = event.value as StoreEntry<T>;
+      yield GenericBoxEvent(
+        key: event.key as String,
+        value: entry?.value,
+        deleted: event.deleted || entry?.value == null,
+      );
+    }
+  }
 
   @protected
   FutureOr<bool> isOnline();
@@ -192,11 +208,7 @@ abstract class WriteCachingStoreBase<T> {
       if (localEntry.modified) {
         await _resolve(key, localEntry, remoteEntry);
       } else {
-        if (remoteEntry.value != null) {
-          await box.put(key, remoteEntry);
-        } else {
-          await _clearLocal(key, remoteEntry.eTag);
-        }
+        await _storeLocal(key, remoteEntry);
       }
     }
   }
@@ -205,31 +217,30 @@ abstract class WriteCachingStoreBase<T> {
     assert(entry.modified);
     // optimistic sync approach
     try {
+      final eTagReceiver = ETagReceiver();
+      T storeValue;
       if (entry.value != null) {
-        final eTagReceiver = ETagReceiver();
-        final storeValue = await store.write(
+        storeValue = await store.write(
           key,
           entry.value,
           eTag: entry.eTag,
           eTagReceiver: eTagReceiver,
         );
-        await box.put(
-          key,
-          StoreEntry(
-            value: storeValue,
-            eTag: eTagReceiver.eTag,
-          ),
-        );
       } else {
-        final eTagReceiver = ETagReceiver();
         await store.delete(
           key,
           eTag: entry.eTag,
           eTagReceiver: eTagReceiver,
           silent: true,
         );
-        await _clearLocal(key, eTagReceiver.eTag);
       }
+      await _storeLocal(
+        key,
+        StoreEntry(
+          value: storeValue,
+          eTag: eTagReceiver.eTag,
+        ),
+      );
       return true;
     } on DbException catch (e) {
       if (e.statusCode == RestApi.statusCodeETagMismatch) {
@@ -255,7 +266,7 @@ abstract class WriteCachingStoreBase<T> {
       ),
       remote: () => remote.copyWith(
         modified: false,
-      ), // TODO delete local
+      ),
       delete: () => StoreEntry(
         value: null,
         eTag: remote.eTag,
@@ -267,21 +278,17 @@ abstract class WriteCachingStoreBase<T> {
         modified: true,
       ),
     );
-    await box.put(key, resolvedEntry);
+    await _storeLocal(key, resolvedEntry);
   }
 
-  Future<void> _clearLocal(String key, [String eTag = RestApi.nullETag]) async {
-    if (keepDeletedEntries) {
-      await box.put(
-        key,
-        StoreEntry(
-          value: null,
-          eTag: eTag,
-          modified: false,
-        ),
-      );
-    } else {
+  Future<void> _storeLocal(
+    String key, [
+    StoreEntry<T> entry = const StoreEntry(value: null),
+  ]) async {
+    if (!entry.modified && entry.value == null && !keepDeletedEntries) {
       await box.delete(key);
+    } else {
+      await box.put(key, entry);
     }
   }
 
@@ -298,7 +305,8 @@ abstract class WriteCachingStoreBase<T> {
       return;
     }
 
-    final entry = event.value as StoreEntry<T>;
+    // use current entry value, as events might be outdated
+    final entry = await _getLocal(event.key as String);
     if (!entry.modified) {
       return;
     }
