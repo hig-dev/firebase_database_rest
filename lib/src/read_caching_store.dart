@@ -5,7 +5,7 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:hive/hive.dart';
 
 import 'auto_renew_stream.dart';
-import 'box_forwarding.dart';
+import 'box_proxy.dart';
 import 'filter.dart';
 import 'generic_box_event.dart';
 import 'store.dart';
@@ -28,9 +28,7 @@ class ReadOnlyBoxError extends UnsupportedError {
       : super('"$method" cannot be called on a read-only box');
 }
 
-abstract class ReadFireBoxBase<T> extends BoxBaseProxy<T>
-    with BoxForward<T>
-    implements BoxBase<T> {
+abstract class ReadFireBoxBase<T> with BoxProxy<T, T> implements BoxBase<T> {
   final FirebaseStore<T> firebaseStore;
 
   ReadFireBoxBase(this.firebaseStore);
@@ -122,6 +120,7 @@ abstract class ReadFireBoxBase<T> extends BoxBaseProxy<T>
       );
 
   // BoxBase implementation
+
   @override
   Future<int> add(T value) {
     throw ReadOnlyBoxError('add');

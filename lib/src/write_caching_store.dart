@@ -3,11 +3,11 @@ import 'dart:async';
 import 'package:hive/hive.dart';
 import 'package:meta/meta.dart';
 
+import 'box_proxy.dart';
 import 'conflict_resolution.dart';
 import 'filter.dart';
 import 'generic_box_event.dart';
 import 'models/db_exception.dart';
-import 'read_caching_store.dart' show ReloadStrategy;
 import 'rest_api.dart';
 import 'store.dart';
 import 'store_entry.dart';
@@ -15,25 +15,55 @@ import 'transaction.dart';
 
 typedef _UpdateFn<T> = FutureOr<StoreEntry<T>> Function(StoreEntry<T> entry);
 
-abstract class WriteCachingStoreBase<T> {
-  final FirebaseStore<T> store;
+enum EntryState {
+  value,
+  valueModified,
+  deleted,
+  deletedModified,
+}
+
+class CovariantArgumentError extends ArgumentError {
+  CovariantArgumentError(
+    dynamic value,
+    Type type, [
+    String name,
+  ]) : super.value(value.runtimeType, name, 'Must be a $type');
+
+  static void checkIs<T>(
+    dynamic value, [
+    String name,
+  ]) {
+    if (value is! T) {
+      throw CovariantArgumentError(value, T, name);
+    }
+  }
+}
+
+abstract class WriteFireBoxBase<T>
+    with BoxProxy<StoreEntry<T>, T>
+    implements BoxBase<T> {
+  final FirebaseStore<T> firebaseStore;
+
+  @override
   BoxBase<StoreEntry<T>> get box;
 
-  bool keepDeletedEntries = false;
-  ReloadStrategy reloadStrategy = ReloadStrategy.compareValue;
-
-  WriteCachingStoreBase(this.store);
+  WriteFireBoxBase(this.firebaseStore);
 
   Future<void> download([Filter filter]) async {
     final eTagReceiver = ETagReceiver();
     final remoteKeys = await (filter != null
-        ? store.queryKeys(filter, eTagReceiver)
-        : store.keys(eTagReceiver));
+        ? firebaseStore.queryKeys(filter, eTagReceiver)
+        : firebaseStore.keys(eTagReceiver));
+    // TODO use eTag for quick updating
     final deletedKeys = keys.toSet().difference(remoteKeys.toSet());
     for (final key in deletedKeys) {
       final localEntry = await _getLocal(key);
       if (localEntry.modified) {
-        await _resolve(key, localEntry, const StoreEntry(value: null));
+        await _resolve(
+          key,
+          local: localEntry,
+          remote: const StoreEntry(value: null),
+        );
       } else {
         await _storeLocal(key);
       }
@@ -44,7 +74,7 @@ abstract class WriteCachingStoreBase<T> {
   }
 
   Future<void> upload({bool multipass = true}) async {
-    var hasChanges = false;
+    bool hasChanges;
     do {
       hasChanges = false;
       for (final key in keys) {
@@ -64,8 +94,8 @@ abstract class WriteCachingStoreBase<T> {
     bool cancelOnError = false,
   }) async {
     final stream = await (filter != null
-        ? store.streamQueryKeys(filter)
-        : store.streamKeys());
+        ? firebaseStore.streamQueryKeys(filter)
+        : firebaseStore.streamKeys());
     return stream.listen(
       (key) => _handleRemoteEvent(key, filter),
       onError: onError,
@@ -73,6 +103,8 @@ abstract class WriteCachingStoreBase<T> {
       cancelOnError: cancelOnError,
     );
   }
+
+  // TODO add syncDownloadRenewed
 
   Future<StreamSubscription<void>> syncUpload({
     Function onError,
@@ -97,16 +129,15 @@ abstract class WriteCachingStoreBase<T> {
   }
 
   Future<FirebaseTransaction<T>> transaction(String key) async =>
-      _WriteStoreTransaction(
-        store: this,
+      _WriteFireBoxTransaction(
+        fireBox: this,
         key: key,
         entry: await _getLocal(key),
       );
 
-  Future<String> add(T value) async {
-    await _checkOnline();
+  Future<String> create(T value) async {
     final eTagReceiver = ETagReceiver();
-    final key = await store.create(value, eTagReceiver);
+    final key = await firebaseStore.create(value, eTagReceiver);
     await box.put(
       key,
       StoreEntry(
@@ -117,49 +148,83 @@ abstract class WriteCachingStoreBase<T> {
     return key;
   }
 
-  Future<int> clear() => box.clear();
+  Future<Iterable<String>> createAll(Iterable<T> values) =>
+      Stream.fromIterable(values).asyncMap((value) => create(value)).toList();
 
-  Future<void> close() => box.close();
+  // BoxBase implementation
 
-  Future<void> compact() => box.compact();
+  @override
+  Future<int> add(T value) {
+    throw UnsupportedError('add');
+  }
 
-  bool containsKey(String key) => box.containsKey(key);
+  @override
+  Future<Iterable<int>> addAll(Iterable<T> values) {
+    throw UnsupportedError('addAll');
+  }
 
-  Future<void> delete(String key) => _update(
-        key,
-        (entry) => entry.copyWith(
-          value: null,
-          modified: true,
-        ),
-      );
+  @override
+  Future<void> delete(covariant String key) async {
+    _checkKeyIsString(key);
+    await _update(
+      key,
+      (entry) => entry.copyWith(
+        value: null,
+        modified: true,
+      ),
+    );
+  }
 
-  Future<void> deleteFromDisk() => box.deleteFromDisk();
+  @override
+  Future<void> deleteAll(covariant Iterable<String> keys) async {
+    CovariantArgumentError.checkIs<Iterable<String>>(keys, 'keys');
+    await Stream.fromIterable(keys).asyncMap((key) => delete(key)).toList();
+  }
 
-  bool get isEmpty => box.isEmpty;
+  @override
+  Future<void> deleteAt(int index) async {
+    await _updateAt(
+      index,
+      (entry) => entry.copyWith(
+        value: null,
+        modified: true,
+      ),
+    );
+  }
 
-  bool get isNotEmpty => box.isNotEmpty;
+  @override
+  Future<void> put(covariant String key, T value) async {
+    _checkKeyIsString(key);
+    await _update(
+      key,
+      (entry) => entry.copyWith(
+        value: value,
+        modified: true,
+      ),
+    );
+  }
 
-  bool get isOpen => box.isOpen;
+  @override
+  Future<void> putAll(covariant Map<String, T> entries) async {
+    CovariantArgumentError.checkIs<Map<String, T>>(entries, 'entries');
+    await Stream.fromIterable(entries.entries)
+        .asyncMap((e) => put(e.key, e.value))
+        .toList();
+  }
 
-  Iterable<String> get keys => box.keys.cast<String>();
+  @override
+  Future<void> putAt(int index, T value) async {
+    await _updateAt(
+      index,
+      (entry) => entry.copyWith(
+        value: value,
+        modified: true,
+      ),
+    );
+  }
 
-  bool get lazy => box.lazy;
-
-  int get length => box.length;
-
-  String get name => box.name;
-
-  String get path => box.path;
-
-  Future<void> put(String key, T value) => _update(
-        key,
-        (entry) => entry.copyWith(
-          value: value,
-          modified: true,
-        ),
-      );
-
-  Stream<GenericBoxEvent<String, T>> watch({String key}) async* {
+  @override
+  Stream<GenericBoxEvent<String, T>> watch({covariant String key}) async* {
     await for (final event in box.watch(key: key)) {
       final entry = event.value as StoreEntry<T>;
       yield GenericBoxEvent(
@@ -171,24 +236,19 @@ abstract class WriteCachingStoreBase<T> {
   }
 
   @protected
-  FutureOr<bool> isOnline();
-
-  @protected
   FutureOr<ConflictResolution<T>> resolveConflict(
     String key,
     T local,
     T remote,
-  );
+  ) =>
+      const ConflictResolution.remote();
 
-  Future<void> _checkOnline() async {
-    if (!await isOnline()) {
-      // TODO throw OfflineException();
-    }
-  }
+  void _checkKeyIsString(String key) =>
+      CovariantArgumentError.checkIs<String>(key, 'key');
 
   Future<StoreEntry<T>> _getRemote(String key) async {
     final eTagReceiver = ETagReceiver();
-    final value = await store.read(key, eTagReceiver);
+    final value = await firebaseStore.read(key, eTagReceiver);
     return StoreEntry(
       value: value,
       eTag: eTagReceiver.eTag,
@@ -197,7 +257,13 @@ abstract class WriteCachingStoreBase<T> {
 
   Future<StoreEntry<T>> _update(String key, _UpdateFn<T> update) async {
     final updated = await update(await _getLocal(key));
-    await box.put(key, updated);
+    await _storeLocal(key, updated);
+    return updated;
+  }
+
+  Future<StoreEntry<T>> _updateAt(int index, _UpdateFn<T> update) async {
+    final updated = await update(await _getLocalAt(index));
+    await _storeLocalAt(index, updated);
     return updated;
   }
 
@@ -206,7 +272,7 @@ abstract class WriteCachingStoreBase<T> {
     final localEntry = await _getLocal(key);
     if (localEntry.eTag != remoteEntry.eTag) {
       if (localEntry.modified) {
-        await _resolve(key, localEntry, remoteEntry);
+        await _resolve(key, local: localEntry, remote: remoteEntry);
       } else {
         await _storeLocal(key, remoteEntry);
       }
@@ -220,14 +286,14 @@ abstract class WriteCachingStoreBase<T> {
       final eTagReceiver = ETagReceiver();
       T storeValue;
       if (entry.value != null) {
-        storeValue = await store.write(
+        storeValue = await firebaseStore.write(
           key,
           entry.value,
           eTag: entry.eTag,
           eTagReceiver: eTagReceiver,
         );
       } else {
-        await store.delete(
+        await firebaseStore.delete(
           key,
           eTag: entry.eTag,
           eTagReceiver: eTagReceiver,
@@ -245,7 +311,7 @@ abstract class WriteCachingStoreBase<T> {
     } on DbException catch (e) {
       if (e.statusCode == RestApi.statusCodeETagMismatch) {
         final remoteEntry = await _getRemote(key);
-        await _resolve(key, entry, remoteEntry);
+        await _resolve(key, local: entry, remote: remoteEntry);
         return false;
       } else {
         rethrow;
@@ -254,19 +320,17 @@ abstract class WriteCachingStoreBase<T> {
   }
 
   Future<void> _resolve(
-    String key,
-    StoreEntry<T> local,
-    StoreEntry<T> remote,
-  ) async {
+    String key, {
+    @required StoreEntry<T> local,
+    @required StoreEntry<T> remote,
+  }) async {
     final resolution = await resolveConflict(key, local.value, remote.value);
     final resolvedEntry = resolution.when(
       local: () => local.copyWith(
         eTag: remote.eTag,
         modified: true,
       ),
-      remote: () => remote.copyWith(
-        modified: false,
-      ),
+      remote: () => remote,
       delete: () => StoreEntry(
         value: null,
         eTag: remote.eTag,
@@ -285,10 +349,21 @@ abstract class WriteCachingStoreBase<T> {
     String key, [
     StoreEntry<T> entry = const StoreEntry(value: null),
   ]) async {
-    if (!entry.modified && entry.value == null && !keepDeletedEntries) {
+    if (!entry.modified && entry.value == null) {
       await box.delete(key);
     } else {
       await box.put(key, entry);
+    }
+  }
+
+  Future<void> _storeLocalAt(
+    int index, [
+    StoreEntry<T> entry = const StoreEntry(value: null),
+  ]) async {
+    if (!entry.modified && entry.value == null) {
+      await box.deleteAt(index);
+    } else {
+      await box.putAt(index, entry);
     }
   }
 
@@ -315,35 +390,108 @@ abstract class WriteCachingStoreBase<T> {
   }
 
   FutureOr<StoreEntry<T>> _getLocal(String key);
+
+  FutureOr<StoreEntry<T>> _getLocalAt(int index);
 }
 
-abstract class WriteCachingStore<T> extends WriteCachingStoreBase<T> {
+class WriteFireBox<T> extends WriteFireBoxBase<T> implements Box<T> {
   @override
   final Box<StoreEntry<T>> box;
 
-  WriteCachingStore(FirebaseStore<T> store, this.box) : super(store);
+  WriteFireBox(FirebaseStore<T> firebaseStore, this.box) : super(firebaseStore);
 
-  T get(String key, {T defaultValue}) => box.get(key)?.value ?? defaultValue;
+  EntryState getState(String key) {
+    final entry = box.get(
+      key,
+      defaultValue: const StoreEntry(value: null),
+    );
+    if (entry.modified) {
+      return entry.value != null
+          ? EntryState.valueModified
+          : EntryState.deletedModified;
+    } else {
+      return entry.value != null ? EntryState.value : EntryState.deleted;
+    }
+  }
 
+  EntryState getStateAt(int index) {
+    final entry = box.getAt(index);
+    if (entry.modified) {
+      return entry.value != null
+          ? EntryState.valueModified
+          : EntryState.deletedModified;
+    } else {
+      return entry.value != null ? EntryState.value : EntryState.deleted;
+    }
+  }
+
+  @override
+  T get(covariant String key, {T defaultValue}) =>
+      box.get(key)?.value ?? defaultValue;
+
+  @override
+  T getAt(int index) => box.getAt(index).value;
+
+  @override
   Map<String, T> toMap() => box
       .toMap()
       .cast<String, StoreEntry<T>>()
-      .map((key, value) => MapEntry(key, value.value));
+      .map((key, value) => MapEntry(key, value?.value));
 
+  @override
   Iterable<T> get values => box.values.map((e) => e.value);
 
-  Iterable<T> valuesBetween({String startKey, String endKey}) =>
-      box.valuesBetween(startKey: startKey, endKey: endKey).map((e) => e.value);
+  @override
+  Iterable<T> valuesBetween({
+    covariant String startKey,
+    covariant String endKey,
+  }) =>
+      box
+          .valuesBetween(
+            startKey: startKey,
+            endKey: endKey,
+          )
+          .map((e) => e.value);
 
   @override
   FutureOr<StoreEntry<T>> _getLocal(String key) => box.get(
         key,
         defaultValue: const StoreEntry(value: null),
       );
+
+  @override
+  FutureOr<StoreEntry<T>> _getLocalAt(int index) => box.getAt(index);
 }
 
-class _WriteStoreTransaction<T> implements FirebaseTransaction<T> {
-  final WriteCachingStoreBase<T> store;
+class LazyWriteFireBox<T> extends WriteFireBoxBase<T> implements LazyBox<T> {
+  @override
+  final LazyBox<StoreEntry<T>> box;
+
+  LazyWriteFireBox(FirebaseStore<T> firebaseStore, this.box)
+      : super(firebaseStore);
+
+  @override
+  Future<T> get(covariant String key, {T defaultValue}) async {
+    final entry = await box.get(key);
+    return entry?.value ?? defaultValue;
+  }
+
+  @override
+  Future<T> getAt(int index) async {
+    final entry = await box.getAt(index);
+    return entry.value;
+  }
+
+  @override
+  FutureOr<StoreEntry<T>> _getLocal(String key) =>
+      box.get(key, defaultValue: const StoreEntry(value: null));
+
+  @override
+  FutureOr<StoreEntry<T>> _getLocalAt(int index) => box.getAt(index);
+}
+
+class _WriteFireBoxTransaction<T> implements FirebaseTransaction<T> {
+  final WriteFireBoxBase<T> fireBox;
   final StoreEntry<T> entry;
 
   @override
@@ -355,15 +503,16 @@ class _WriteStoreTransaction<T> implements FirebaseTransaction<T> {
   @override
   String get eTag => entry.eTag;
 
-  _WriteStoreTransaction({
-    @required this.store,
+  _WriteFireBoxTransaction({
+    @required this.fireBox,
     @required this.key,
     @required this.entry,
   });
 
   @override
   Future<T> commitUpdate(T data) async {
-    final updated = await store._update(
+    // TODO check not already commited
+    final updated = await fireBox._update(
       key,
       (entry) {
         if (entry.eTag == eTag) {
@@ -372,10 +521,7 @@ class _WriteStoreTransaction<T> implements FirebaseTransaction<T> {
             modified: true,
           );
         } else {
-          throw const DbException(
-            statusCode: RestApi.statusCodeETagMismatch,
-            error: 'ETag mismatch',
-          );
+          throw TransactionFailedException(oldETag: eTag, newETag: entry.eTag);
         }
       },
     );
@@ -384,7 +530,8 @@ class _WriteStoreTransaction<T> implements FirebaseTransaction<T> {
 
   @override
   Future<void> commitDelete() async {
-    await store._update(
+    // TODO check not already commited
+    await fireBox._update(
       key,
       (entry) {
         if (entry.eTag == eTag) {
@@ -393,10 +540,7 @@ class _WriteStoreTransaction<T> implements FirebaseTransaction<T> {
             modified: true,
           );
         } else {
-          throw const DbException(
-            statusCode: RestApi.statusCodeETagMismatch,
-            error: 'ETag mismatch',
-          );
+          throw TransactionFailedException(oldETag: eTag, newETag: entry.eTag);
         }
       },
     );

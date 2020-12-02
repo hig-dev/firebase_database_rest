@@ -1,10 +1,8 @@
 import 'package:hive/hive.dart';
 
-abstract class BoxBaseProxy<T> implements BoxBase<T> {
-  BoxBase<T> get box;
-}
+mixin BoxProxy<TBase, TImpl> implements BoxBase<TImpl> {
+  BoxBase<TBase> get box;
 
-mixin BoxForward<T> on BoxBaseProxy<T> {
   @override
   Future<int> clear() => box.clear();
 
