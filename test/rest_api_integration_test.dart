@@ -7,6 +7,7 @@ import 'package:test/test.dart';
 import 'firebase_test_config.dart';
 
 void main() {
+  return;
   hierarchicalLoggingEnabled = true;
 
   Client client;

@@ -6,14 +6,14 @@ part 'timeout.freezed.dart';
 abstract class Timeout implements _$Timeout {
   const Timeout._();
 
-  @Assert('value >= 0')
-  @Assert('value <= 900000')
+  @Assert('value > 0', 'value must be a positive integer')
+  @Assert('value <= 900000', 'value must be at most 15 min (900000 ms)')
   const factory Timeout.ms(int value) = _TimeoutMs;
-  @Assert('value >= 0')
-  @Assert('value <= 900')
+  @Assert('value > 0', 'value must be a positive integer')
+  @Assert('value <= 900', 'value must be at most 15 min (900 s)')
   const factory Timeout.s(int value) = _TimeoutS;
-  @Assert('value >= 0')
-  @Assert('value <= 15')
+  @Assert('value > 0', 'value must be a positive integer')
+  @Assert('value <= 15', 'value must be at most 15 min')
   const factory Timeout.min(int value) = _TimeoutMin;
 
   factory Timeout.fromDuration(Duration duration) {

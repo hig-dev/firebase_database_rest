@@ -1,4 +1,3 @@
-import 'package:firebase_database_rest/src/models/api_constants.dart';
 import 'package:firebase_database_rest/src/models/db_response.dart';
 import 'package:firebase_database_rest/src/rest_api.dart';
 import 'package:firebase_database_rest/src/store.dart';
@@ -45,12 +44,10 @@ void main() {
       test('calls api.get', () async {
         final result = await sut.keys();
 
-        expect(result, <String>[]);
+        expect(result, isEmpty);
         verify(mockRestApi.get(
           path: path,
           shallow: true,
-          // ignore: avoid_redundant_argument_values
-          eTag: false,
         ));
       });
 
@@ -73,9 +70,12 @@ void main() {
       });
 
       test('requests eTag with etag receiver set', () async {
+        _whenGet().thenAnswer(
+          (i) async => const DbResponse(data: null, eTag: 'TAG'),
+        );
         final result = await sut.keys(eTagReceiver: ETagReceiver());
 
-        expect(result, <String>[]);
+        expect(result, isEmpty);
         verify(mockRestApi.get(
           path: path,
           shallow: true,
@@ -91,7 +91,72 @@ void main() {
         final receiver = ETagReceiver();
         final result = await sut.keys(eTagReceiver: receiver);
 
-        expect(result, <String>[]);
+        expect(result, isEmpty);
+        expect(receiver.eTag, 'TAG');
+      });
+    });
+
+    group('all', () {
+      test('calls api.get', () async {
+        final result = await sut.all();
+
+        expect(result, isEmpty);
+        verify(mockRestApi.get(
+          path: path,
+        ));
+      });
+
+      test('returns json data as map', () async {
+        _whenGet().thenAnswer(
+          (i) async => const DbResponse(data: {
+            'a': 1,
+            'b': 2,
+            'c': 3,
+          }),
+        );
+
+        final result = await sut.all();
+        expect(result, {
+          'a': 1,
+          'b': 2,
+          'c': 3,
+        });
+      });
+
+      test('throws if conversion fails', () async {
+        _whenGet().thenAnswer(
+          (i) async => const DbResponse(data: {
+            'a': 1,
+            'b': 2.0,
+            'c': 3,
+          }),
+        );
+
+        expect(() => sut.all(), throwsA(isA<TypeError>()));
+      });
+
+      test('requests eTag with etag receiver set', () async {
+        _whenGet().thenAnswer(
+          (i) async => const DbResponse(data: null, eTag: 'TAG'),
+        );
+        final result = await sut.all(eTagReceiver: ETagReceiver());
+
+        expect(result, isEmpty);
+        verify(mockRestApi.get(
+          path: path,
+          eTag: true,
+        ));
+      });
+
+      test('sets ETag on receiver', () async {
+        _whenGet().thenAnswer(
+          (i) async => const DbResponse(data: null, eTag: 'TAG'),
+        );
+
+        final receiver = ETagReceiver();
+        final result = await sut.all(eTagReceiver: receiver);
+
+        expect(result, isEmpty);
         expect(receiver.eTag, 'TAG');
       });
     });

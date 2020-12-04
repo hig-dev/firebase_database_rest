@@ -22,7 +22,7 @@ void main() {
 
     expect(
       () => FirebaseTimestamp.fromJson(ApiConstants.serverTimeStamp),
-      throwsA(isA<AssertionError>()),
+      throwsA(isA<ArgumentError>()),
     );
   });
 }

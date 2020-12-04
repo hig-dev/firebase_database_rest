@@ -290,7 +290,10 @@ abstract class FirebaseStore<T> {
 
   void _applyETag(ETagReceiver eTagReceiver, DbResponse response) {
     if (eTagReceiver != null) {
-      assert(response.eTag != null);
+      assert(
+        response.eTag != null,
+        'ETag-Header must not be null when an ETag has been requested',
+      );
       eTagReceiver._eTag = response.eTag;
     }
   }
@@ -301,7 +304,8 @@ abstract class FirebaseStore<T> {
           key,
           dataFromJson(value),
         ),
-      );
+      ) ??
+      {};
 
   Stream<StoreEvent<T>> _transformKeyValuePairs(
     Stream<StreamEvent> stream,

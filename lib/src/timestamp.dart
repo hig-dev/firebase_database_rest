@@ -15,7 +15,13 @@ abstract class FirebaseTimestamp implements _$FirebaseTimestamp {
   const factory FirebaseTimestamp.server() = _Server;
 
   factory FirebaseTimestamp.fromJson(dynamic json) {
-    assert(json is String);
+    if (json is! String) {
+      throw ArgumentError.value(
+        json,
+        'json',
+        'Cannot deserialize a server timestamp placeholder',
+      );
+    }
     return FirebaseTimestamp(DateTime.parse(json as String));
   }
 
