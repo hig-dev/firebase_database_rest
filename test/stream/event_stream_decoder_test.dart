@@ -2,34 +2,22 @@ import 'dart:async';
 
 import 'package:firebase_database_rest/src/stream/event_stream_decoder.dart';
 import 'package:firebase_database_rest/src/stream/server_sent_event.dart';
+import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
 import 'package:test/test.dart';
 
-abstract class Callable0 {
-  void call();
-}
+import '../mock_callable.dart';
 
-abstract class Callable1<T1> {
-  void call(T1 p1);
-}
-
-abstract class Callable2<T1, T2> {
-  void call(T1 p1, T2 p2);
-}
+import 'event_stream_decoder_test.mocks.dart';
 
 class MockStream extends Mock implements Stream<String> {}
 
-class MockStreamSubscription extends Mock
-    implements StreamSubscription<String> {}
-
-class MockCallable0 extends Mock implements Callable0 {}
-
-class MockCallable1<T1> extends Mock implements Callable1<T1> {}
-
-class MockCallable2<T1, T2> extends Mock implements Callable2<T1, T2> {}
-
+@GenerateMocks([
+  // Stream,
+  StreamSubscription,
+])
 void main() {
-  final mockSub = MockStreamSubscription();
+  final mockSub = MockStreamSubscription<String>();
   final mockStream = MockStream();
 
   // ignore: prefer_const_constructors
@@ -61,7 +49,7 @@ void main() {
   });
 
   test('forwards onDone event', () async {
-    final mockOnDone = MockCallable0();
+    final mockOnDone = MockCallable0<void>();
 
     // ignore: unused_local_variable
     final stream = sut.bind(mockStream)
@@ -85,7 +73,7 @@ void main() {
   });
 
   test('forwards onError event', () async {
-    final mockOnError = MockCallable2<Object, StackTrace>();
+    final mockOnError = MockCallable2<void, Object, StackTrace>();
 
     // ignore: unused_local_variable
     final stream = sut.bind(mockStream)

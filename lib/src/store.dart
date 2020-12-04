@@ -2,12 +2,16 @@ import 'dart:async';
 
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:logging/logging.dart';
+import 'package:meta/meta.dart';
 
+import '../firebase_database_rest.dart';
 import 'auth_revoked_exception.dart';
-import 'filter.dart';
+import 'models/api_constants.dart';
 import 'models/db_response.dart';
+import 'models/filter.dart';
 import 'models/post_response.dart';
 import 'models/stream_event.dart';
+import 'patch_on_null_error.dart';
 import 'rest_api.dart';
 import 'store_event.dart';
 import 'transaction.dart';
@@ -15,20 +19,22 @@ import 'transaction.dart';
 class ETagReceiver {
   String _eTag;
 
-  bool get hasETag => _eTag != null;
   String get eTag => _eTag;
-}
-
-class PatchOnNullError extends Error {
-  final String key;
-
-  PatchOnNullError([this.key]);
 
   @override
-  String toString() => key != null
-      ? 'Cannot patch a non existant entry, '
-          'no value with key: ${Error.safeToString(key)}'
-      : 'Cannot patch a non existant entry';
+  String toString() => 'ETag: $eTag';
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) {
+      return true;
+    }
+
+    return other is ETagReceiver && eTag == other.eTag;
+  }
+
+  @override
+  int get hashCode => runtimeType.hashCode ^ (eTag?.hashCode ?? 0);
 }
 
 typedef DataFromJsonCallback<T> = T Function(dynamic json);
@@ -99,7 +105,7 @@ abstract class FirebaseStore<T> {
         loggingCategory: loggingCategory,
       );
 
-  Future<List<String>> keys([ETagReceiver eTagReceiver]) async {
+  Future<List<String>> keys({ETagReceiver eTagReceiver}) async {
     final response = await restApi.get(
       path: _path(),
       shallow: true,
@@ -109,7 +115,7 @@ abstract class FirebaseStore<T> {
     return (response.data as Map<String, dynamic>)?.keys?.toList() ?? [];
   }
 
-  Future<Map<String, T>> all([ETagReceiver eTagReceiver]) async {
+  Future<Map<String, T>> all({ETagReceiver eTagReceiver}) async {
     final response = await restApi.get(
       path: _path(),
       eTag: eTagReceiver != null,
@@ -118,7 +124,7 @@ abstract class FirebaseStore<T> {
     return _mapTransform(response.data);
   }
 
-  Future<T> read(String key, [ETagReceiver eTagReceiver]) async {
+  Future<T> read(String key, {ETagReceiver eTagReceiver}) async {
     final response = await restApi.get(
       path: _path(key),
       eTag: eTagReceiver != null,
@@ -145,7 +151,7 @@ abstract class FirebaseStore<T> {
     return silent ? null : dataFromJson(response.data);
   }
 
-  Future<String> create(T data, [ETagReceiver eTagReceiver]) async {
+  Future<String> create(T data, {ETagReceiver eTagReceiver}) async {
     final response = await restApi.post(
       dataToJson(data),
       path: _path(),
@@ -186,9 +192,9 @@ abstract class FirebaseStore<T> {
   }
 
   Future<Map<String, T>> query(
-    Filter filter, [
+    Filter filter, {
     ETagReceiver eTagReceiver,
-  ]) async {
+  }) async {
     final response = await restApi.get(
       path: _path(),
       filter: filter,
@@ -199,9 +205,9 @@ abstract class FirebaseStore<T> {
   }
 
   Future<List<String>> queryKeys(
-    Filter filter, [
+    Filter filter, {
     ETagReceiver eTagReceiver,
-  ]) async {
+  }) async {
     final response = await restApi.get(
       path: _path(),
       filter: filter,
@@ -284,6 +290,7 @@ abstract class FirebaseStore<T> {
 
   void _applyETag(ETagReceiver eTagReceiver, DbResponse response) {
     if (eTagReceiver != null) {
+      assert(response.eTag != null);
       eTagReceiver._eTag = response.eTag;
     }
   }
@@ -481,7 +488,7 @@ class _StorePatchSet<T> implements PatchSet<T> {
       const DeepCollectionEquality().hash(data);
 }
 
-class _StoreTransaction<T> implements FirebaseTransaction<T> {
+class _StoreTransaction<T> extends SingleCommitTransaction<T> {
   final FirebaseStore<T> store;
 
   @override
@@ -496,8 +503,6 @@ class _StoreTransaction<T> implements FirebaseTransaction<T> {
   final bool silent;
   final ETagReceiver eTagReceiver;
 
-  bool _committed = false;
-
   _StoreTransaction({
     @required this.store,
     @required this.key,
@@ -508,8 +513,7 @@ class _StoreTransaction<T> implements FirebaseTransaction<T> {
   });
 
   @override
-  Future<T> commitUpdate(T data) async {
-    _assertNotCommitted();
+  Future<T> commitUpdateImpl(T data) async {
     final response = await store.restApi.put(
       store.dataToJson(data),
       path: store._path(key),
@@ -522,8 +526,7 @@ class _StoreTransaction<T> implements FirebaseTransaction<T> {
   }
 
   @override
-  Future<void> commitDelete() async {
-    _assertNotCommitted();
+  Future<void> commitDeleteImpl() async {
     final response = await store.restApi.delete(
       path: store._path(key),
       printMode: PrintMode.silent,
@@ -531,13 +534,5 @@ class _StoreTransaction<T> implements FirebaseTransaction<T> {
       eTag: eTagReceiver != null,
     );
     store._applyETag(eTagReceiver, response);
-  }
-
-  void _assertNotCommitted() {
-    if (_committed) {
-      throw AlreadyComittedError();
-    } else {
-      _committed = true;
-    }
   }
 }

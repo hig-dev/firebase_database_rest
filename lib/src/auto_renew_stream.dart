@@ -33,7 +33,9 @@ class AutoRenewStream<T> extends Stream<T> {
     var currentStream = _initialStream ?? await streamFactory();
     do {
       try {
-        yield* currentStream;
+        await for (final value in currentStream) {
+          yield value;
+        }
         streamEnded = true;
       } on AuthRevokedException {
         currentStream = await streamFactory();

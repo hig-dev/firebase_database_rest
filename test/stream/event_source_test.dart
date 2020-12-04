@@ -3,13 +3,16 @@ import 'dart:convert';
 import 'package:firebase_database_rest/src/stream/event_source.dart';
 import 'package:firebase_database_rest/src/stream/server_sent_event.dart';
 import 'package:http/http.dart';
+import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
 import 'package:test/test.dart';
 
-class MockClient extends Mock implements Client {}
+import 'event_source_test.mocks.dart';
 
-class MockStreamedResponse extends Mock implements StreamedResponse {}
-
+@GenerateMocks([
+  Client,
+  StreamedResponse,
+])
 void main() {
   final mockResponse = MockStreamedResponse();
 
@@ -17,6 +20,7 @@ void main() {
     reset(mockResponse);
 
     when(mockResponse.statusCode).thenReturn(200);
+    when(mockResponse.headers).thenReturn({});
   });
 
   group('EventSource', () {
@@ -102,6 +106,10 @@ data: data2
 
     test('throws ClientStreamException on failure status code', () async {
       when(mockResponse.statusCode).thenReturn(400);
+      when(mockResponse.request).thenReturn(null);
+      when(mockResponse.isRedirect).thenReturn(false);
+      when(mockResponse.persistentConnection).thenReturn(false);
+      when(mockResponse.reasonPhrase).thenReturn(null);
       when(mockResponse.stream)
           .thenAnswer((i) => ByteStream(const Stream.empty()));
 

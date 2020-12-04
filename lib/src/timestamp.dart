@@ -1,6 +1,6 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
-import 'rest_api.dart';
+import 'models/api_constants.dart';
 
 part 'timestamp.freezed.dart';
 
@@ -21,7 +21,7 @@ abstract class FirebaseTimestamp implements _$FirebaseTimestamp {
 
   dynamic toJson() => when(
         (value) => value.toIso8601String(),
-        server: () => RestApi.serverTimeStamp,
+        server: () => ApiConstants.serverTimeStamp,
       );
 
   DateTime get dateTime => when(

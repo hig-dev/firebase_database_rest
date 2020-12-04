@@ -1,40 +1,21 @@
 import 'dart:async';
 
 import 'package:firebase_auth_rest/firebase_auth_rest.dart';
-import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:http/http.dart';
+import 'package:meta/meta.dart';
 
+import 'models/api_constants.dart';
 import 'models/timeout.dart';
 import 'rest_api.dart';
 import 'store.dart';
 
-abstract class FirebaseDatabase {
+class FirebaseDatabase {
   StreamSubscription<String> _idTokenSub;
 
   final FirebaseAccount account;
   final RestApi api;
   final FirebaseStore<dynamic> rootStore;
 
-  FirebaseDatabase.api(
-    this.api, [
-    this.account,
-  ]) : rootStore = FirebaseStore<dynamic>.apiCreate(
-          restApi: api,
-          subPaths: [],
-          onDataFromJson: (dynamic json) => json,
-          onDataToJson: (dynamic data) => data,
-          onPatchData: (dynamic data, updatedFields) =>
-              (data as Map<String, dynamic>)..addAll(updatedFields),
-        ) {
-    if (account != null) {
-      _idTokenSub = account.idTokenStream.listen(
-        (idToken) => api.idToken = idToken,
-        cancelOnError: false,
-      );
-    }
-  }
-
-  // ignore: sort_unnamed_constructors_first
   FirebaseDatabase({
     @required FirebaseAccount account,
     @required String database,
@@ -51,7 +32,7 @@ abstract class FirebaseDatabase {
             timeout: timeout,
             writeSizeLimit: writeSizeLimit,
           ),
-          account,
+          account: account,
         );
 
   FirebaseDatabase.unauthenticated({
@@ -69,6 +50,25 @@ abstract class FirebaseDatabase {
             writeSizeLimit: writeSizeLimit,
           ),
         );
+
+  FirebaseDatabase.api(
+    this.api, {
+    this.account,
+  }) : rootStore = FirebaseStore<dynamic>.apiCreate(
+          restApi: api,
+          subPaths: [],
+          onDataFromJson: (dynamic json) => json,
+          onDataToJson: (dynamic data) => data,
+          onPatchData: (dynamic data, updatedFields) =>
+              (data as Map<String, dynamic>)..addAll(updatedFields),
+        ) {
+    if (account != null) {
+      _idTokenSub = account.idTokenStream.listen(
+        (idToken) => api.idToken = idToken,
+        cancelOnError: false,
+      );
+    }
+  }
 
   Future<void> dispose() async {
     await _idTokenSub?.cancel();

@@ -1,23 +1,26 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:firebase_database_rest/src/filter.dart';
+import 'package:firebase_database_rest/src/models/api_constants.dart';
 import 'package:firebase_database_rest/src/models/db_exception.dart';
 import 'package:firebase_database_rest/src/models/db_response.dart';
+import 'package:firebase_database_rest/src/models/filter.dart';
 import 'package:firebase_database_rest/src/models/stream_event.dart';
 import 'package:firebase_database_rest/src/models/timeout.dart';
 import 'package:firebase_database_rest/src/rest_api.dart';
 import 'package:http/http.dart';
 import 'package:logging/logging.dart';
+import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
 import 'package:test/test.dart' hide Timeout;
 
-class MockClient extends Mock implements Client {}
+import 'rest_api_test.mocks.dart';
 
-class MockResponse extends Mock implements Response {}
-
-class MockStreamedResponse extends Mock implements StreamedResponse {}
-
+@GenerateMocks([
+  Client,
+  Response,
+  StreamedResponse,
+])
 void main() {
   const databaseName = 'database';
   final mockResponse = MockResponse();
@@ -47,8 +50,6 @@ void main() {
     expect(sut.timeout, null);
     expect(sut.writeSizeLimit, null);
   });
-
-  // TODO test different base path / params
 
   group('methods', () {
     setUp(() {
@@ -134,7 +135,7 @@ void main() {
 
       test('parses valid response with eTag', () async {
         when(mockResponse.headers).thenReturn(const {
-          'ETag': 'tag',
+          'etag': 'tag',
         });
 
         final result = await sut.get(eTag: true);
@@ -151,7 +152,7 @@ void main() {
         when(mockResponse.statusCode).thenReturn(204);
         when(mockResponse.body).thenReturn('{"a": 1}');
         when(mockResponse.headers).thenReturn(const {
-          'ETag': 'tag',
+          'etag': 'tag',
         });
 
         final result = await sut.get(eTag: true);
@@ -253,7 +254,7 @@ void main() {
 
       test('parses valid response with eTag', () async {
         when(mockResponse.headers).thenReturn(const {
-          'ETag': 'tag',
+          'etag': 'tag',
         });
 
         final result = await sut.post(null, eTag: true);
@@ -270,7 +271,7 @@ void main() {
         when(mockResponse.statusCode).thenReturn(204);
         when(mockResponse.body).thenReturn('{"a": 1}');
         when(mockResponse.headers).thenReturn(const {
-          'ETag': 'tag',
+          'etag': 'tag',
         });
 
         final result = await sut.post(null, eTag: true);
@@ -374,7 +375,7 @@ void main() {
 
       test('parses valid response with eTag', () async {
         when(mockResponse.headers).thenReturn(const {
-          'ETag': 'tag',
+          'etag': 'tag',
         });
 
         final result = await sut.put(null, eTag: true);
@@ -391,7 +392,7 @@ void main() {
         when(mockResponse.statusCode).thenReturn(204);
         when(mockResponse.body).thenReturn('{"a": 1}');
         when(mockResponse.headers).thenReturn(const {
-          'ETag': 'tag',
+          'etag': 'tag',
         });
 
         final result = await sut.put(null, eTag: true);
@@ -587,7 +588,7 @@ void main() {
 
       test('parses valid response with eTag', () async {
         when(mockResponse.headers).thenReturn(const {
-          'ETag': 'tag',
+          'etag': 'tag',
         });
 
         final result = await sut.delete(eTag: true);
@@ -604,7 +605,7 @@ void main() {
         when(mockResponse.statusCode).thenReturn(204);
         when(mockResponse.body).thenReturn('{"a": 1}');
         when(mockResponse.headers).thenReturn(const {
-          'ETag': 'tag',
+          'etag': 'tag',
         });
 
         final result = await sut.delete(eTag: true);

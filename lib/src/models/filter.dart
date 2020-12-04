@@ -1,7 +1,10 @@
-class Filter {
-  final Map<String, String> filters;
+import 'package:freezed_annotation/freezed_annotation.dart';
 
-  const Filter._(this.filters);
+part 'filter.freezed.dart';
+
+@freezed
+abstract class Filter with _$Filter {
+  const factory Filter._(Map<String, String> filters) = _Filter;
 
   static FilterBuilder<T> property<T>(String property) =>
       FilterBuilder<T>._(property);

@@ -1,83 +1,20 @@
 import 'dart:convert';
 
-import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:http/http.dart';
 import 'package:logging/logging.dart';
+import 'package:meta/meta.dart';
 import 'package:path/path.dart';
 
-import 'filter.dart';
+import 'models/api_constants.dart';
 import 'models/db_exception.dart';
 import 'models/db_response.dart';
+import 'models/filter.dart';
 import 'models/stream_event.dart';
 import 'models/timeout.dart';
 import 'stream/event_source.dart';
 
-enum PrintMode {
-  pretty,
-  silent,
-}
-
-extension PrintModeX on PrintMode {
-  String get value {
-    switch (this) {
-      case PrintMode.pretty:
-        return 'pretty';
-      case PrintMode.silent:
-        return 'silent';
-      default:
-        return null;
-    }
-  }
-}
-
-enum FormatMode {
-  export,
-}
-
-extension FormatModeX on FormatMode {
-  String get value {
-    switch (this) {
-      case FormatMode.export:
-        return 'export';
-      default:
-        return null;
-    }
-  }
-}
-
-enum WriteSizeLimit {
-  tiny,
-  small,
-  medium,
-  large,
-  unlimited,
-}
-
-extension WriteSizeLimitX on WriteSizeLimit {
-  String get value {
-    switch (this) {
-      case WriteSizeLimit.tiny:
-        return 'tiny';
-      case WriteSizeLimit.small:
-        return 'small';
-      case WriteSizeLimit.medium:
-        return 'medium';
-      case WriteSizeLimit.large:
-        return 'large';
-      case WriteSizeLimit.unlimited:
-        return 'unlimited';
-      default:
-        return null;
-    }
-  }
-}
-
 class RestApi {
   static const loggingTag = 'firebase_database_rest.RestApi';
-
-  static const serverTimeStamp = {'.sv': 'timestamp'};
-  static const statusCodeETagMismatch = 412;
-  static const nullETag = 'null_etag';
 
   final Logger _logger;
 
@@ -222,7 +159,7 @@ class RestApi {
         formatMode: formatMode,
         shallow: shallow,
       ),
-      headers: _buildHeaders(eTag: true),
+      headers: _buildHeaders(),
     );
     return _transformEventStream(source);
   }

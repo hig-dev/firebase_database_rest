@@ -1,8 +1,5 @@
-import 'dart:math';
-
 import 'package:firebase_auth_rest/firebase_auth_rest.dart';
 import 'package:firebase_database_rest/src/rest_api.dart';
-import 'package:firebase_database_rest/src/store.dart';
 import 'package:http/http.dart';
 import 'package:logging/logging.dart';
 import 'package:test/test.dart';

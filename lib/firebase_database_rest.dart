@@ -1,4 +1,13 @@
-/// Support for doing something awesome.
-///
-/// More dartdocs go here.
-library firebase_database_rest;
+export 'src/auth_revoked_exception.dart';
+export 'src/auto_renew_stream.dart';
+export 'src/database.dart';
+export 'src/models/api_constants.dart';
+export 'src/models/db_exception.dart';
+export 'src/models/filter.dart';
+export 'src/models/timeout.dart';
+export 'src/patch_on_null_error.dart';
+export 'src/rest_api.dart';
+export 'src/store.dart';
+export 'src/store_event.dart';
+export 'src/timestamp.dart';
+export 'src/transaction.dart';

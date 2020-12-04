@@ -1,4 +1,6 @@
-import 'rest_api.dart';
+import 'package:meta/meta.dart';
+
+import 'models/api_constants.dart';
 
 class AlreadyComittedError extends StateError {
   AlreadyComittedError() : super('Transaction has already been committed');
@@ -9,8 +11,8 @@ class TransactionFailedException implements Exception {
   final String newETag;
 
   TransactionFailedException({
-    this.oldETag = RestApi.nullETag,
-    this.newETag = RestApi.nullETag,
+    this.oldETag = ApiConstants.nullETag,
+    this.newETag = ApiConstants.nullETag,
   });
 
   @override
@@ -26,4 +28,36 @@ abstract class FirebaseTransaction<T> {
   Future<T> commitUpdate(T data);
 
   Future<void> commitDelete();
+}
+
+abstract class SingleCommitTransaction<T> implements FirebaseTransaction<T> {
+  bool _committed = false;
+
+  @protected
+  Future<T> commitUpdateImpl(T data);
+
+  @protected
+  Future<void> commitDeleteImpl();
+
+  @nonVirtual
+  @override
+  Future<T> commitUpdate(T data) {
+    _assertNotCommitted();
+    return commitUpdateImpl(data);
+  }
+
+  @nonVirtual
+  @override
+  Future<void> commitDelete() {
+    _assertNotCommitted();
+    return commitDeleteImpl();
+  }
+
+  void _assertNotCommitted() {
+    if (_committed) {
+      throw AlreadyComittedError();
+    } else {
+      _committed = true;
+    }
+  }
 }
