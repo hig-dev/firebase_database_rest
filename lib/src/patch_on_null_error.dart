@@ -1,5 +1,5 @@
 class PatchOnNullError extends Error {
-  final String key;
+  final String? key;
 
   PatchOnNullError([this.key]);
 

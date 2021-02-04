@@ -14,7 +14,7 @@ void main() {
   const path = 'base/path/x';
   final mockRestApi = MockRestApi();
 
-  FirebaseStore<int> sut;
+  late FirebaseStore<int> sut;
 
   PostExpectation<Future<DbResponse>> _whenGet() => when(mockRestApi.get(
         path: anyNamed('path'),

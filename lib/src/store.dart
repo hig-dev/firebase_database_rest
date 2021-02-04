@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:freezed_annotation/freezed_annotation.dart';
-import 'package:logging/logging.dart';
+import 'package:logging/logging.dart'; // ignore: import_of_legacy_library_into_null_safe
 import 'package:meta/meta.dart';
 
 import '../firebase_database_rest.dart';
@@ -17,9 +17,9 @@ import 'store_event.dart';
 import 'transaction.dart';
 
 class ETagReceiver {
-  String _eTag;
+  String? _eTag;
 
-  String get eTag => _eTag;
+  String? get eTag => _eTag;
 
   @override
   String toString() => 'ETag: $eTag';
@@ -53,48 +53,48 @@ abstract class FirebaseStore<T> {
   final List<String> subPaths;
   String get path => _path();
 
-  final Logger _logger;
+  final Logger? _logger;
 
   @protected
   FirebaseStore({
-    @required FirebaseStore<dynamic> parent,
-    @required String path,
-    String loggingCategory = loggingTag,
+    required FirebaseStore<dynamic> parent,
+    required String path,
+    String? loggingCategory = loggingTag,
   })  : restApi = parent.restApi,
         subPaths = [...parent.subPaths, path],
         _logger = loggingCategory != null ? Logger(loggingCategory) : null;
 
   @protected
   FirebaseStore.api({
-    @required this.restApi,
-    @required this.subPaths,
-    String loggingCategory = loggingTag,
+    required this.restApi,
+    required this.subPaths,
+    String? loggingCategory = loggingTag,
   }) : _logger = loggingCategory != null ? Logger(loggingCategory) : null;
 
   factory FirebaseStore.create({
-    @required FirebaseStore<dynamic> parent,
-    @required String path,
-    @required DataFromJsonCallback<T> onDataFromJson,
-    @required DataToJsonCallback<T> onDataToJson,
-    @required PatchDataCallback<T> onPatchData,
-    String loggingCategory,
+    required FirebaseStore<dynamic> parent,
+    required String path,
+    required DataFromJsonCallback<T> onDataFromJson,
+    required DataToJsonCallback<T> onDataToJson,
+    required PatchDataCallback<T> onPatchData,
+    String? loggingCategory,
   }) = _CallbackFirebaseStore;
 
   factory FirebaseStore.apiCreate({
-    @required RestApi restApi,
-    @required List<String> subPaths,
-    @required DataFromJsonCallback<T> onDataFromJson,
-    @required DataToJsonCallback<T> onDataToJson,
-    @required PatchDataCallback<T> onPatchData,
-    String loggingCategory,
+    required RestApi restApi,
+    required List<String> subPaths,
+    required DataFromJsonCallback<T> onDataFromJson,
+    required DataToJsonCallback<T> onDataToJson,
+    required PatchDataCallback<T> onPatchData,
+    String? loggingCategory,
   }) = _CallbackFirebaseStore.api;
 
   FirebaseStore<U> subStore<U>({
-    @required String path,
-    @required DataFromJsonCallback<U> onDataFromJson,
-    @required DataToJsonCallback<U> onDataToJson,
-    @required PatchDataCallback<U> onPatchData,
-    String loggingCategory = loggingTag,
+    required String path,
+    required DataFromJsonCallback<U> onDataFromJson,
+    required DataToJsonCallback<U> onDataToJson,
+    required PatchDataCallback<U> onPatchData,
+    String? loggingCategory = loggingTag,
   }) =>
       FirebaseStore.create(
         parent: this,
@@ -105,17 +105,17 @@ abstract class FirebaseStore<T> {
         loggingCategory: loggingCategory,
       );
 
-  Future<List<String>> keys({ETagReceiver eTagReceiver}) async {
+  Future<List<String>> keys({ETagReceiver? eTagReceiver}) async {
     final response = await restApi.get(
       path: _path(),
       shallow: true,
       eTag: eTagReceiver != null,
     );
     _applyETag(eTagReceiver, response);
-    return (response.data as Map<String, dynamic>)?.keys?.toList() ?? [];
+    return (response.data as Map<String, dynamic>?)?.keys.toList() ?? [];
   }
 
-  Future<Map<String, T>> all({ETagReceiver eTagReceiver}) async {
+  Future<Map<String, T>> all({ETagReceiver? eTagReceiver}) async {
     final response = await restApi.get(
       path: _path(),
       eTag: eTagReceiver != null,
@@ -124,7 +124,7 @@ abstract class FirebaseStore<T> {
     return _mapTransform(response.data);
   }
 
-  Future<T> read(String key, {ETagReceiver eTagReceiver}) async {
+  Future<T?> read(String key, {ETagReceiver? eTagReceiver}) async {
     final response = await restApi.get(
       path: _path(key),
       eTag: eTagReceiver != null,
@@ -133,12 +133,12 @@ abstract class FirebaseStore<T> {
     return dataFromJson(response.data);
   }
 
-  Future<T> write(
+  Future<T?> write(
     String key,
     T data, {
     bool silent = false,
-    String eTag,
-    ETagReceiver eTagReceiver,
+    String? eTag,
+    ETagReceiver? eTagReceiver,
   }) async {
     final response = await restApi.put(
       dataToJson(data),
@@ -151,7 +151,7 @@ abstract class FirebaseStore<T> {
     return silent ? null : dataFromJson(response.data);
   }
 
-  Future<String> create(T data, {ETagReceiver eTagReceiver}) async {
+  Future<String> create(T data, {ETagReceiver? eTagReceiver}) async {
     final response = await restApi.post(
       dataToJson(data),
       path: _path(),
@@ -162,7 +162,7 @@ abstract class FirebaseStore<T> {
     return result.name;
   }
 
-  Future<T> update(
+  Future<T?> update(
     String key,
     Map<String, dynamic> updateFields, {
     bool silent = false,
@@ -175,11 +175,11 @@ abstract class FirebaseStore<T> {
     return silent ? null : dataFromJson(response.data);
   }
 
-  Future<T> delete(
+  Future<T?> delete(
     String key, {
     bool silent = false,
-    String eTag,
-    ETagReceiver eTagReceiver,
+    String? eTag,
+    ETagReceiver? eTagReceiver,
   }) async {
     final response = await restApi.delete(
       path: _path(key),
@@ -193,7 +193,7 @@ abstract class FirebaseStore<T> {
 
   Future<Map<String, T>> query(
     Filter filter, {
-    ETagReceiver eTagReceiver,
+    ETagReceiver? eTagReceiver,
   }) async {
     final response = await restApi.get(
       path: _path(),
@@ -206,7 +206,7 @@ abstract class FirebaseStore<T> {
 
   Future<List<String>> queryKeys(
     Filter filter, {
-    ETagReceiver eTagReceiver,
+    ETagReceiver? eTagReceiver,
   }) async {
     final response = await restApi.get(
       path: _path(),
@@ -215,13 +215,13 @@ abstract class FirebaseStore<T> {
       eTag: eTagReceiver != null,
     );
     _applyETag(eTagReceiver, response);
-    return (response.data as Map<String, dynamic>)?.keys?.toList() ?? [];
+    return (response.data as Map<String, dynamic>?)?.keys.toList() ?? [];
   }
 
   Future<FirebaseTransaction<T>> transaction(
     String key, {
     bool silent = false,
-    ETagReceiver eTagReceiver,
+    ETagReceiver? eTagReceiver,
   }) async {
     final response = await restApi.get(
       path: _path(key),
@@ -231,7 +231,7 @@ abstract class FirebaseStore<T> {
       store: this,
       key: key,
       value: dataFromJson(response.data),
-      eTag: response.eTag,
+      eTag: response.eTag!,
       silent: silent,
       eTagReceiver: eTagReceiver,
     );
@@ -277,18 +277,18 @@ abstract class FirebaseStore<T> {
   }
 
   @protected
-  T dataFromJson(dynamic json); // can be null
+  T dataFromJson(dynamic? json); // can be null
 
   @protected
-  dynamic dataToJson(T data); // can be null
+  dynamic? dataToJson(T data); // can be null
 
   @protected
   T patchData(T data, Map<String, dynamic> updatedFields);
 
-  String _path([String key]) =>
+  String _path([String? key]) =>
       (key != null ? [...subPaths, key] : subPaths).join('/');
 
-  void _applyETag(ETagReceiver eTagReceiver, DbResponse response) {
+  void _applyETag(ETagReceiver? eTagReceiver, DbResponse response) {
     if (eTagReceiver != null) {
       assert(
         response.eTag != null,
@@ -299,7 +299,7 @@ abstract class FirebaseStore<T> {
   }
 
   Map<String, T> _mapTransform(dynamic data) =>
-      (data as Map<String, dynamic>)?.map(
+      (data as Map<String, dynamic>?)?.map(
         (key, dynamic value) => MapEntry(
           key,
           dataFromJson(value),
@@ -321,9 +321,9 @@ abstract class FirebaseStore<T> {
             final match = subPathRegexp.firstMatch(path);
             if (match != null) {
               if (data != null) {
-                yield StoreEvent.put(match[1], dataFromJson(data));
+                yield StoreEvent.put(match[1]!, dataFromJson(data));
               } else {
-                yield StoreEvent.delete(match[1]);
+                yield StoreEvent.delete(match[1]!);
               }
             } else {
               _logPathTooDeep(path);
@@ -334,10 +334,10 @@ abstract class FirebaseStore<T> {
           final match = subPathRegexp.firstMatch(path);
           if (match != null) {
             yield StoreEvent.patch(
-              match[1],
+              match[1]!,
               _StorePatchSet(
                 this,
-                data as Map<String, dynamic> ?? <String, dynamic>{},
+                data as Map<String, dynamic>? ?? const <String, dynamic>{},
               ),
             );
           } else {
@@ -355,12 +355,10 @@ abstract class FirebaseStore<T> {
     await for (final event in stream) {
       yield* event.when(
         put: (path, dynamic data) async* {
-          if (path == '/') {
-            yield null;
-          } else {
+          if (path != '/') {
             final match = subPathRegexp.firstMatch(path);
             if (match != null) {
-              yield match[1];
+              yield match[1]!;
             } else {
               _logPathTooDeep(path);
             }
@@ -369,7 +367,7 @@ abstract class FirebaseStore<T> {
         patch: (path, dynamic data) async* {
           final match = subPathRegexp.firstMatch(path);
           if (match != null) {
-            yield match[1];
+            yield match[1]!;
           } else {
             _logPathTooDeep(path);
           }
@@ -380,7 +378,7 @@ abstract class FirebaseStore<T> {
   }
 
   Stream<T> _transformValues(Stream<StreamEvent> stream) async* {
-    T currentValue;
+    T? currentValue;
     await for (final event in stream) {
       final updatedValue = event.when(
         put: (path, dynamic data) {
@@ -398,7 +396,7 @@ abstract class FirebaseStore<T> {
             }
             return patchData(
               currentValue,
-              data as Map<String, dynamic> ?? <String, dynamic>{},
+              data as Map<String, dynamic>? ?? const <String, dynamic>{},
             );
           } else {
             _logPathTooDeep(path);
@@ -424,12 +422,12 @@ class _CallbackFirebaseStore<T> extends FirebaseStore<T> {
   final PatchDataCallback<T> onPatchData;
 
   _CallbackFirebaseStore({
-    @required FirebaseStore<dynamic> parent,
-    @required String path,
-    @required this.onDataFromJson,
-    @required this.onDataToJson,
-    @required this.onPatchData,
-    String loggingCategory = FirebaseStore.loggingTag,
+    required FirebaseStore<dynamic> parent,
+    required String path,
+    required this.onDataFromJson,
+    required this.onDataToJson,
+    required this.onPatchData,
+    String? loggingCategory = FirebaseStore.loggingTag,
   }) : super(
           parent: parent,
           path: path,
@@ -437,12 +435,12 @@ class _CallbackFirebaseStore<T> extends FirebaseStore<T> {
         );
 
   _CallbackFirebaseStore.api({
-    @required RestApi restApi,
-    @required List<String> subPaths,
-    @required this.onDataFromJson,
-    @required this.onDataToJson,
-    @required this.onPatchData,
-    String loggingCategory = FirebaseStore.loggingTag,
+    required RestApi restApi,
+    required List<String> subPaths,
+    required this.onDataFromJson,
+    required this.onDataToJson,
+    required this.onPatchData,
+    String? loggingCategory = FirebaseStore.loggingTag,
   }) : super.api(
           restApi: restApi,
           subPaths: subPaths,
@@ -450,10 +448,10 @@ class _CallbackFirebaseStore<T> extends FirebaseStore<T> {
         );
 
   @override
-  T dataFromJson(dynamic json) => onDataFromJson(json);
+  T dataFromJson(dynamic? json) => onDataFromJson(json);
 
   @override
-  dynamic dataToJson(T data) => onDataToJson(data);
+  dynamic? dataToJson(T data) => onDataToJson(data);
 
   @override
   T patchData(T data, Map<String, dynamic> updatedFields) =>
@@ -505,19 +503,19 @@ class _StoreTransaction<T> extends SingleCommitTransaction<T> {
   final String eTag;
 
   final bool silent;
-  final ETagReceiver eTagReceiver;
+  final ETagReceiver? eTagReceiver;
 
   _StoreTransaction({
-    @required this.store,
-    @required this.key,
-    @required this.value,
-    @required this.eTag,
-    @required this.silent,
-    @required this.eTagReceiver,
+    required this.store,
+    required this.key,
+    required this.value,
+    required this.eTag,
+    required this.silent,
+    required this.eTagReceiver,
   });
 
   @override
-  Future<T> commitUpdateImpl(T data) async {
+  Future<T?> commitUpdateImpl(T data) async {
     final response = await store.restApi.put(
       store.dataToJson(data),
       path: store._path(key),

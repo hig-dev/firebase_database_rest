@@ -10,8 +10,6 @@ extension PrintModeX on PrintMode {
         return 'pretty';
       case PrintMode.silent:
         return 'silent';
-      default:
-        return null;
     }
   }
 }
@@ -25,8 +23,6 @@ extension FormatModeX on FormatMode {
     switch (this) {
       case FormatMode.export:
         return 'export';
-      default:
-        return null;
     }
   }
 }
@@ -52,14 +48,12 @@ extension WriteSizeLimitX on WriteSizeLimit {
         return 'large';
       case WriteSizeLimit.unlimited:
         return 'unlimited';
-      default:
-        return null;
     }
   }
 }
 
 abstract class ApiConstants {
-  factory ApiConstants._() => null;
+  ApiConstants._();
 
   static const serverTimeStamp = {'.sv': 'timestamp'};
   static const statusCodeETagMismatch = 412;

@@ -6,13 +6,13 @@ part 'stream_event.g.dart';
 @freezed
 abstract class StreamEvent with _$StreamEvent {
   const factory StreamEvent.put({
-    @required String path,
-    @required @nullable dynamic data,
+    required String path,
+    required dynamic? data,
   }) = StreamEventPut;
 
   const factory StreamEvent.patch({
-    @required String path,
-    @required @nullable dynamic data,
+    required String path,
+    required dynamic? data,
   }) = StreamEventPatch;
 
   const factory StreamEvent.authRevoked() = StreamEventAuthRevoked;

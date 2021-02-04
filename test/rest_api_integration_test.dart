@@ -1,7 +1,7 @@
 import 'package:firebase_auth_rest/firebase_auth_rest.dart';
 import 'package:firebase_database_rest/src/rest_api.dart';
 import 'package:http/http.dart';
-import 'package:logging/logging.dart';
+import 'package:logging/logging.dart'; // ignore: import_of_legacy_library_into_null_safe
 import 'package:test/test.dart';
 
 import 'firebase_test_config.dart';
@@ -10,11 +10,11 @@ void main() {
   return;
   hierarchicalLoggingEnabled = true;
 
-  Client client;
-  FirebaseAccount account;
+  late Client client;
+  late FirebaseAccount account;
 
   var caseCtr = 0;
-  RestApi sut;
+  late RestApi sut;
 
   setUpAll(() async {
     // ignore: avoid_print
@@ -29,9 +29,8 @@ void main() {
   });
 
   tearDownAll(() async {
-    await account?.delete();
-    account?.dispose();
-    client?.close();
+    await account.delete();
+    client.close();
   });
 
   setUp(() {
@@ -45,7 +44,7 @@ void main() {
   });
 
   tearDown(() async {
-    await sut?.delete();
+    await sut.delete();
   });
 
   test('setup and teardown work as expected', () async {

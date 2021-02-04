@@ -24,7 +24,7 @@ void main() {
   });
 
   group('EventSource', () {
-    EventSource sut;
+    late EventSource sut;
 
     setUp(() {
       sut = EventSource(mockResponse);
@@ -111,7 +111,7 @@ data: data2
       when(mockResponse.persistentConnection).thenReturn(false);
       when(mockResponse.reasonPhrase).thenReturn(null);
       when(mockResponse.stream)
-          .thenAnswer((i) => ByteStream(const Stream.empty()));
+          .thenAnswer((i) => const ByteStream(Stream.empty()));
 
       expect(
         mockClient.stream(Uri()),

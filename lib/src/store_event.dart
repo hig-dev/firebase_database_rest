@@ -3,6 +3,8 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 part 'store_event.freezed.dart';
 
 abstract class PatchSet<T> {
+  const PatchSet._();
+
   T apply(T value);
 }
 

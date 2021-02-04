@@ -6,7 +6,7 @@ part 'server_sent_event.freezed.dart';
 abstract class ServerSentEvent with _$ServerSentEvent {
   const factory ServerSentEvent({
     @Default('message') String event,
-    @required String data,
-    String lastEventId,
+    required String data,
+    String? lastEventId,
   }) = _ServerSentEvent;
 }

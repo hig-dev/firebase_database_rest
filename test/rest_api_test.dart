@@ -9,7 +9,7 @@ import 'package:firebase_database_rest/src/models/stream_event.dart';
 import 'package:firebase_database_rest/src/models/timeout.dart';
 import 'package:firebase_database_rest/src/rest_api.dart';
 import 'package:http/http.dart';
-import 'package:logging/logging.dart';
+import 'package:logging/logging.dart'; // ignore: import_of_legacy_library_into_null_safe
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
 import 'package:test/test.dart' hide Timeout;
@@ -26,7 +26,7 @@ void main() {
   final mockResponse = MockResponse();
   final mockClient = MockClient();
 
-  RestApi sut;
+  late RestApi sut;
 
   setUp(() {
     reset(mockResponse);
@@ -479,7 +479,7 @@ void main() {
       test('parses valid response', () async {
         when(mockResponse.body).thenReturn('{"a": 1}');
 
-        final result = await sut.patch(null);
+        final result = await sut.patch(const <String, dynamic>{});
         expect(
           result,
           const DbResponse(
@@ -494,7 +494,7 @@ void main() {
         when(mockResponse.statusCode).thenReturn(204);
         when(mockResponse.body).thenReturn('{"a": 1}');
 
-        final result = await sut.patch(null);
+        final result = await sut.patch(const <String, dynamic>{});
         expect(
           result,
           const DbResponse(
@@ -508,7 +508,7 @@ void main() {
         when(mockResponse.body).thenReturn('{"error": "message"}');
 
         expect(
-          () => sut.patch(null),
+          () => sut.patch(const <String, dynamic>{}),
           throwsA(const DbException(
             statusCode: 404,
             error: 'message',
@@ -635,7 +635,7 @@ void main() {
     group('stream', () {
       void _verifyStream(
         dynamic url, {
-        Map<String, String> headers,
+        Map<String, String>? headers,
       }) {
         final captured = verify(mockClient.send(captureAny)).captured;
         final request = captured.single as Request;
@@ -662,7 +662,7 @@ void main() {
 
         when(mockStreamedResponse.statusCode).thenReturn(200);
         when(mockStreamedResponse.stream).thenAnswer(
-          (i) => ByteStream(const Stream.empty()),
+          (i) => const ByteStream(Stream.empty()),
         );
         when(mockStreamedResponse.headers).thenReturn(const {});
 

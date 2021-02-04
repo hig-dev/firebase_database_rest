@@ -22,7 +22,7 @@ abstract class FirebaseTimestamp implements _$FirebaseTimestamp {
         'Cannot deserialize a server timestamp placeholder',
       );
     }
-    return FirebaseTimestamp(DateTime.parse(json as String));
+    return FirebaseTimestamp(DateTime.parse(json));
   }
 
   dynamic toJson() => when(
@@ -32,6 +32,8 @@ abstract class FirebaseTimestamp implements _$FirebaseTimestamp {
 
   DateTime get dateTime => when(
         (value) => value,
-        server: () => null,
+        server: () => throw UnsupportedError(
+          'cannot call dateTime on a server timestamp',
+        ),
       );
 }

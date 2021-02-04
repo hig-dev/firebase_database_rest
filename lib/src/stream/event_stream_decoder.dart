@@ -7,8 +7,8 @@ class EventStreamDecoder implements StreamTransformer<String, ServerSentEvent> {
 
   @override
   Stream<ServerSentEvent> bind(Stream<String> stream) async* {
-    String eventType;
-    String lastEventId;
+    String? eventType;
+    String? lastEventId;
     final data = <String>[];
     await for (final line in stream) {
       if (line.isEmpty) {

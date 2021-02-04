@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:firebase_auth_rest/firebase_auth_rest.dart';
 import 'package:http/http.dart';
-import 'package:meta/meta.dart';
 
 import 'models/api_constants.dart';
 import 'models/timeout.dart';
@@ -10,19 +9,19 @@ import 'rest_api.dart';
 import 'store.dart';
 
 class FirebaseDatabase {
-  StreamSubscription<String> _idTokenSub;
+  StreamSubscription<String>? _idTokenSub;
 
-  final FirebaseAccount account;
+  final FirebaseAccount? account;
   final RestApi api;
   final FirebaseStore<dynamic> rootStore;
 
   FirebaseDatabase({
-    @required FirebaseAccount account,
-    @required String database,
+    required FirebaseAccount account,
+    required String database,
     String basePath = '',
-    Timeout timeout,
-    WriteSizeLimit writeSizeLimit,
-    Client client,
+    Timeout? timeout,
+    WriteSizeLimit? writeSizeLimit,
+    Client? client,
   }) : this.api(
           RestApi(
             client: client ?? account.api.client,
@@ -36,11 +35,11 @@ class FirebaseDatabase {
         );
 
   FirebaseDatabase.unauthenticated({
-    @required Client client,
-    @required String database,
+    required Client client,
+    required String database,
     String basePath = '',
-    Timeout timeout,
-    WriteSizeLimit writeSizeLimit,
+    Timeout? timeout,
+    WriteSizeLimit? writeSizeLimit,
   }) : this.api(
           RestApi(
             client: client,
@@ -63,7 +62,7 @@ class FirebaseDatabase {
               (data as Map<String, dynamic>)..addAll(updatedFields),
         ) {
     if (account != null) {
-      _idTokenSub = account.idTokenStream.listen(
+      _idTokenSub = account!.idTokenStream.listen(
         (idToken) => api.idToken = idToken,
         cancelOnError: false,
       );
@@ -76,10 +75,10 @@ class FirebaseDatabase {
   }
 
   FirebaseStore<T> createRootStore<T>({
-    @required String path,
-    @required DataFromJsonCallback<T> onDataFromJson,
-    @required DataToJsonCallback<T> onDataToJson,
-    @required PatchDataCallback<T> onPatchData,
+    required String path,
+    required DataFromJsonCallback<T> onDataFromJson,
+    required DataToJsonCallback<T> onDataToJson,
+    required PatchDataCallback<T> onPatchData,
     String loggingCategory = FirebaseStore.loggingTag,
   }) =>
       FirebaseStore.apiCreate(

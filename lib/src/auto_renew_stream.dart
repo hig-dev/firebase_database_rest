@@ -5,7 +5,7 @@ import 'auth_revoked_exception.dart';
 typedef StreamFactory<T> = Future<Stream<T>> Function();
 
 class AutoRenewStream<T> extends Stream<T> {
-  final Stream<T> _initialStream;
+  final Stream<T>? _initialStream;
 
   final StreamFactory<T> streamFactory;
 
@@ -16,10 +16,10 @@ class AutoRenewStream<T> extends Stream<T> {
 
   @override
   StreamSubscription<T> listen(
-    void Function(T event) onData, {
-    Function onError,
-    void Function() onDone,
-    bool cancelOnError,
+    void Function(T event)? onData, {
+    Function? onError,
+    void Function()? onDone,
+    bool? cancelOnError,
   }) =>
       _renewableStream().listen(
         onData,

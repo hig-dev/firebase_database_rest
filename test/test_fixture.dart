@@ -2,16 +2,16 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:test/test.dart';
 
 class Fixture {
-  final dynamic _param0;
-  final dynamic _param1;
-  final dynamic _param2;
-  final dynamic _param3;
-  final dynamic _param4;
-  final dynamic _param5;
-  final dynamic _param6;
-  final dynamic _param7;
-  final dynamic _param8;
-  final dynamic _param9;
+  final dynamic? _param0;
+  final dynamic? _param1;
+  final dynamic? _param2;
+  final dynamic? _param3;
+  final dynamic? _param4;
+  final dynamic? _param5;
+  final dynamic? _param6;
+  final dynamic? _param7;
+  final dynamic? _param8;
+  final dynamic? _param9;
 
   const Fixture([
     this._param0,
@@ -64,16 +64,16 @@ class Fixture {
   }
 
   static List<Fixture> mapped([
-    List<dynamic> param0List,
-    List<dynamic> param1List,
-    List<dynamic> param2List,
-    List<dynamic> param3List,
-    List<dynamic> param4List,
-    List<dynamic> param5List,
-    List<dynamic> param6List,
-    List<dynamic> param7List,
-    List<dynamic> param8List,
-    List<dynamic> param9List,
+    List<dynamic>? param0List,
+    List<dynamic>? param1List,
+    List<dynamic>? param2List,
+    List<dynamic>? param3List,
+    List<dynamic>? param4List,
+    List<dynamic>? param5List,
+    List<dynamic>? param6List,
+    List<dynamic>? param7List,
+    List<dynamic>? param8List,
+    List<dynamic>? param9List,
   ]) {
     final fixtures = <Fixture>[];
 
@@ -119,13 +119,13 @@ void testWithData(
   dynamic description,
   List<Fixture> fixtures,
   dynamic Function(Fixture fixture) body, {
-  String testOn,
-  Timeout timeout,
+  String? testOn,
+  Timeout? timeout,
   dynamic skip,
   dynamic tags,
-  Map<String, dynamic> onPlatform,
-  int retry,
-  String Function(Fixture fixture) fixtureToString,
+  Map<String, dynamic>? onPlatform,
+  int? retry,
+  String Function(Fixture fixture)? fixtureToString,
 }) {
   assert(fixtures.isNotEmpty);
   group(description, () {

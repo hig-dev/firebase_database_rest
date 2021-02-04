@@ -7,7 +7,7 @@ part 'db_exception.g.dart';
 abstract class DbException with _$DbException implements Exception {
   const factory DbException({
     @Default(400) int statusCode,
-    String error,
+    String? error,
   }) = _Exception;
 
   factory DbException.fromJson(Map<String, dynamic> json) =>

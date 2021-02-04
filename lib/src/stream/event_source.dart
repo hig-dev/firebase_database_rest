@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:http/http.dart';
-import 'package:logging/logging.dart';
+import 'package:logging/logging.dart'; // ignore: import_of_legacy_library_into_null_safe
 
 import 'event_stream_decoder.dart';
 import 'server_sent_event.dart';
@@ -20,10 +20,10 @@ class EventSource extends Stream<ServerSentEvent> {
 
   @override
   StreamSubscription<ServerSentEvent> listen(
-    void Function(ServerSentEvent event) onData, {
-    Function onError,
-    void Function() onDone,
-    bool cancelOnError,
+    void Function(ServerSentEvent event)? onData, {
+    Function? onError,
+    void Function()? onDone,
+    bool? cancelOnError,
   }) =>
       response.stream
           .transform(utf8.decoder)
@@ -40,8 +40,8 @@ class EventSource extends Stream<ServerSentEvent> {
 extension EventSourceClientX on Client {
   Future<EventSource> stream(
     Uri url, {
-    Map<String, String> headers,
-    String lastEventID,
+    Map<String, String>? headers,
+    String? lastEventID,
   }) async {
     final request = Request('GET', url);
     if (headers != null) {

@@ -1,8 +1,7 @@
 import 'dart:convert';
 
 import 'package:http/http.dart';
-import 'package:logging/logging.dart';
-import 'package:meta/meta.dart';
+import 'package:logging/logging.dart'; // ignore: import_of_legacy_library_into_null_safe
 import 'package:path/path.dart';
 
 import 'models/api_constants.dart';
@@ -16,38 +15,38 @@ import 'stream/event_source.dart';
 class RestApi {
   static const loggingTag = 'firebase_database_rest.RestApi';
 
-  final Logger _logger;
+  final Logger? _logger;
 
   final Client client;
   final String database;
   final String basePath;
 
-  String idToken;
-  Timeout timeout;
-  WriteSizeLimit writeSizeLimit;
+  String? idToken;
+  Timeout? timeout;
+  WriteSizeLimit? writeSizeLimit;
 
   RestApi({
-    @required this.client,
-    @required this.database,
+    required this.client,
+    required this.database,
     this.basePath = '',
     this.idToken,
     this.timeout,
     this.writeSizeLimit,
-    String loggingCategory = loggingTag,
+    String? loggingCategory = loggingTag,
   }) : _logger = loggingCategory != null ? Logger(loggingCategory) : null;
 
   Future<DbResponse> get({
-    String path,
-    PrintMode printMode,
-    FormatMode formatMode,
-    bool shallow,
-    Filter filter,
+    String? path,
+    PrintMode? printMode,
+    FormatMode? formatMode,
+    bool? shallow,
+    Filter? filter,
     bool eTag = false,
   }) async {
     _logger?.fine('Sending get request...');
     final response = await client.get(
       _buildUri(
-        path,
+        path: path,
         filter: filter,
         printMode: printMode,
         formatMode: formatMode,
@@ -62,14 +61,14 @@ class RestApi {
 
   Future<DbResponse> post(
     dynamic body, {
-    String path,
-    PrintMode printMode,
+    String? path,
+    PrintMode? printMode,
     bool eTag = false,
   }) async {
     _logger?.fine('Sending post request...');
     final response = await client.post(
       _buildUri(
-        path,
+        path: path,
         printMode: printMode,
       ),
       body: json.encode(body),
@@ -83,15 +82,15 @@ class RestApi {
 
   Future<DbResponse> put(
     dynamic body, {
-    String path,
-    PrintMode printMode,
+    String? path,
+    PrintMode? printMode,
     bool eTag = false,
-    String ifMatch,
+    String? ifMatch,
   }) async {
     _logger?.fine('Sending put request...');
     final response = await client.put(
       _buildUri(
-        path,
+        path: path,
         printMode: printMode,
       ),
       body: json.encode(body),
@@ -106,13 +105,13 @@ class RestApi {
 
   Future<DbResponse> patch(
     Map<String, dynamic> updateChildren, {
-    String path,
-    PrintMode printMode,
+    String? path,
+    PrintMode? printMode,
   }) async {
     _logger?.fine('Sending patch request...');
     final response = await client.patch(
       _buildUri(
-        path,
+        path: path,
         printMode: printMode,
       ),
       body: json.encode(updateChildren),
@@ -124,15 +123,15 @@ class RestApi {
   }
 
   Future<DbResponse> delete({
-    String path,
-    PrintMode printMode,
+    String? path,
+    PrintMode? printMode,
     bool eTag = false,
-    String ifMatch,
+    String? ifMatch,
   }) async {
     _logger?.fine('Sending delete request...');
     final response = await client.delete(
       _buildUri(
-        path,
+        path: path,
         printMode: printMode,
       ),
       headers: _buildHeaders(
@@ -144,16 +143,16 @@ class RestApi {
   }
 
   Future<Stream<StreamEvent>> stream({
-    String path,
-    PrintMode printMode,
-    FormatMode formatMode,
-    bool shallow,
-    Filter filter,
+    String? path,
+    PrintMode? printMode,
+    FormatMode? formatMode,
+    bool? shallow,
+    Filter? filter,
   }) async {
     _logger?.fine('Sending stream request...');
     final source = await client.stream(
       _buildUri(
-        path,
+        path: path,
         filter: filter,
         printMode: printMode,
         formatMode: formatMode,
@@ -164,12 +163,12 @@ class RestApi {
     return _transformEventStream(source);
   }
 
-  Uri _buildUri(
-    String path, {
-    Filter filter,
-    PrintMode printMode,
-    FormatMode formatMode,
-    bool shallow,
+  Uri _buildUri({
+    String? path,
+    Filter? filter,
+    PrintMode? printMode,
+    FormatMode? formatMode,
+    bool? shallow,
   }) {
     final uri = Uri(
       scheme: 'https',
@@ -178,9 +177,9 @@ class RestApi {
         path != null ? '$basePath/$path.json' : '$basePath.json',
       ),
       queryParameters: <String, dynamic>{
-        if (idToken != null) 'auth': idToken,
-        if (timeout != null) 'timeout': timeout.serialize(),
-        if (writeSizeLimit != null) 'writeSizeLimit': writeSizeLimit.value,
+        if (idToken != null) 'auth': idToken!,
+        if (timeout != null) 'timeout': timeout!.serialize(),
+        if (writeSizeLimit != null) 'writeSizeLimit': writeSizeLimit!.value,
         if (printMode != null) 'print': printMode.value,
         if (formatMode != null) 'format': formatMode.value,
         if (shallow != null) 'shallow': shallow.toString(),
@@ -194,8 +193,8 @@ class RestApi {
   Map<String, String> _buildHeaders({
     bool hasBody = false,
     bool eTag = false,
-    String ifMatch,
-    String accept,
+    String? ifMatch,
+    String? accept,
   }) {
     final headers = {
       'Accept': accept ?? 'application/json',

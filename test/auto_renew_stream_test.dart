@@ -8,7 +8,7 @@ import 'mock_callable.dart';
 void main() {
   final mockStreamFactory = MockCallable0<Future<Stream<int>>>();
 
-  int _authStreamCtr;
+  late int _authStreamCtr;
   Stream<int> _authStream(int limit) async* {
     if (_authStreamCtr < limit) {
       yield _authStreamCtr++;

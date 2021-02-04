@@ -25,7 +25,7 @@ abstract class FirebaseTransaction<T> {
   T get value;
   String get eTag;
 
-  Future<T> commitUpdate(T data);
+  Future<T?> commitUpdate(T data);
 
   Future<void> commitDelete();
 }
@@ -34,14 +34,14 @@ abstract class SingleCommitTransaction<T> implements FirebaseTransaction<T> {
   bool _committed = false;
 
   @protected
-  Future<T> commitUpdateImpl(T data);
+  Future<T?> commitUpdateImpl(T data);
 
   @protected
   Future<void> commitDeleteImpl();
 
   @nonVirtual
   @override
-  Future<T> commitUpdate(T data) {
+  Future<T?> commitUpdate(T data) {
     _assertNotCommitted();
     return commitUpdateImpl(data);
   }
