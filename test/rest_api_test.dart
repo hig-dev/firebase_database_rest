@@ -74,7 +74,7 @@ void main() {
           Uri.https(
             'database.firebaseio.com',
             '.json',
-            const {},
+            const <String, String>{},
           ),
           headers: const {
             'Accept': 'application/json',
@@ -101,7 +101,7 @@ void main() {
           Uri.https(
             'database.firebaseio.com',
             'some/path.json',
-            const {
+            const <String, String>{
               'auth': 'token',
               'timeout': '5ms',
               'writeSizeLimit': 'tiny',
@@ -195,7 +195,7 @@ void main() {
           Uri.https(
             'database.firebaseio.com',
             '.json',
-            const {},
+            const <String, String>{},
           ),
           headers: const {
             'Accept': 'application/json',
@@ -222,7 +222,7 @@ void main() {
           Uri.https(
             'database.firebaseio.com',
             'a/b.json',
-            const {
+            const <String, String>{
               'auth': 'token',
               'timeout': '10s',
               'writeSizeLimit': 'small',
@@ -314,7 +314,7 @@ void main() {
           Uri.https(
             'database.firebaseio.com',
             '.json',
-            const {},
+            const <String, String>{},
           ),
           headers: const {
             'Accept': 'application/json',
@@ -342,7 +342,7 @@ void main() {
           Uri.https(
             'database.firebaseio.com',
             'pkg/cls/mtd.json',
-            const {
+            const <String, String>{
               'auth': 'token',
               'timeout': '15min',
               'writeSizeLimit': 'medium',
@@ -435,7 +435,7 @@ void main() {
           Uri.https(
             'database.firebaseio.com',
             '.json',
-            const {},
+            const <String, String>{},
           ),
           headers: const {
             'Accept': 'application/json',
@@ -461,7 +461,7 @@ void main() {
           Uri.https(
             'database.firebaseio.com',
             'some/stuff/.json',
-            const {
+            const <String, String>{
               'auth': 'token',
               'timeout': '15min',
               'writeSizeLimit': 'large',
@@ -532,7 +532,7 @@ void main() {
           Uri.https(
             'database.firebaseio.com',
             '.json',
-            const {},
+            const <String, String>{},
           ),
           headers: const {
             'Accept': 'application/json',
@@ -557,7 +557,7 @@ void main() {
           Uri.https(
             'database.firebaseio.com',
             'delete/this.json',
-            const {
+            const <String, String>{
               'auth': 'token',
               'timeout': '1min',
               'writeSizeLimit': 'unlimited',
@@ -677,7 +677,7 @@ void main() {
           Uri.https(
             'database.firebaseio.com',
             '.json',
-            const {},
+            const <String, String>{},
           ),
           headers: const {
             'Accept': 'text/event-stream',
@@ -704,7 +704,7 @@ void main() {
           Uri.https(
             'database.firebaseio.com',
             'stream/path.json',
-            const {
+            const <String, String>{
               'auth': 'token',
               'timeout': '999ms',
               'writeSizeLimit': 'unlimited',
