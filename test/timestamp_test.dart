@@ -17,7 +17,7 @@ void main() {
   test('server constructor wraps server timestamp placeholder', () {
     const timestamp = FirebaseTimestamp.server();
 
-    expect(timestamp.dateTime, isNull);
+    expect(() => timestamp.dateTime, throwsA(isA<UnsupportedError>()));
     expect(timestamp.toJson(), ApiConstants.serverTimeStamp);
 
     expect(
