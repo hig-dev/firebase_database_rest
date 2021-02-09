@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:http/http.dart';
-import 'package:logging/logging.dart'; // ignore: import_of_legacy_library_into_null_safe
 
 import 'event_stream_decoder.dart';
 import 'server_sent_event.dart';
@@ -54,7 +53,6 @@ extension EventSourceClientX on Client {
     }
 
     final response = await send(request);
-    Logger.root.finest(response.headers);
     if (response.statusCode != 200) {
       throw ClientStreamException(await Response.fromStream(response));
     }

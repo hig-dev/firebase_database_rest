@@ -9,7 +9,6 @@ import 'package:firebase_database_rest/src/models/stream_event.dart';
 import 'package:firebase_database_rest/src/models/timeout.dart';
 import 'package:firebase_database_rest/src/rest_api.dart';
 import 'package:http/http.dart';
-import 'package:logging/logging.dart'; // ignore: import_of_legacy_library_into_null_safe
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
 import 'package:test/test.dart' hide Timeout;
@@ -808,12 +807,7 @@ void main() {
         ]);
       });
 
-      test('logs warning on unknown event', () async {
-        Logger.root.level = Level.ALL;
-        final test = Logger.root.onRecord.any(
-          (e) => e.message == 'Ignoring unsupported stream event: __test_event',
-        );
-
+      test('yield unknown on unknown event', () async {
         _mockStream(mockStreamedResponse, const [
           'event: __test_event\n',
           'data: 42\n',
@@ -821,10 +815,14 @@ void main() {
         ]);
 
         final stream = await sut.stream();
-        expect(await stream.length, 0);
+        expect(stream, isNotNull);
 
-        final result = await test;
-        expect(result, true);
+        expect(await stream.toList(), const [
+          StreamEvent.unknown(
+            event: '__test_event',
+            data: '42',
+          ),
+        ]);
       });
     });
   });

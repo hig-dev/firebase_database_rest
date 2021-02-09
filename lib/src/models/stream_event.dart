@@ -7,15 +7,20 @@ part 'stream_event.g.dart';
 abstract class StreamEvent with _$StreamEvent {
   const factory StreamEvent.put({
     required String path,
-    required dynamic? data,
+    required dynamic data,
   }) = StreamEventPut;
 
   const factory StreamEvent.patch({
     required String path,
-    required dynamic? data,
+    required dynamic data,
   }) = StreamEventPatch;
 
   const factory StreamEvent.authRevoked() = StreamEventAuthRevoked;
+
+  const factory StreamEvent.unknown({
+    required String event,
+    required String data,
+  }) = StreamEventUnknown;
 
   factory StreamEvent.fromJson(Map<String, dynamic> json) =>
       _$StreamEventFromJson(json);

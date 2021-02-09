@@ -1,14 +1,12 @@
 import 'package:firebase_auth_rest/firebase_auth_rest.dart';
 import 'package:firebase_database_rest/src/rest_api.dart';
 import 'package:http/http.dart';
-import 'package:logging/logging.dart'; // ignore: import_of_legacy_library_into_null_safe
 import 'package:test/test.dart';
 
 import 'firebase_test_config.dart';
 
 void main() {
   return;
-  hierarchicalLoggingEnabled = true;
 
   late Client client;
   late FirebaseAccount account;
@@ -17,14 +15,8 @@ void main() {
   late RestApi sut;
 
   setUpAll(() async {
-    // ignore: avoid_print
-    Logger.root
-      ..level = Level.ALL
-      ..onRecord.listen((event) => print(event));
-    // Logger('firebase_rest_auth').level = Level.ALL;
-
     client = Client();
-    final auth = FirebaseAuth(client, FirebaseConfig.apiKey);
+    final auth = FirebaseAuth(client, firebaseConfig.apiKey);
     account = await auth.signUpAnonymous(autoRefresh: false);
   });
 
@@ -36,7 +28,7 @@ void main() {
   setUp(() {
     sut = RestApi(
       client: client,
-      database: FirebaseConfig.projectId,
+      database: firebaseConfig.projectId,
       basePath:
           'firebase_database_rest/${account.localId}/_test_path_${caseCtr++}',
       idToken: account.idToken,

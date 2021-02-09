@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:freezed_annotation/freezed_annotation.dart';
-import 'package:logging/logging.dart'; // ignore: import_of_legacy_library_into_null_safe
 import 'package:meta/meta.dart';
 
 import '../firebase_database_rest.dart';
@@ -53,23 +52,18 @@ abstract class FirebaseStore<T> {
   final List<String> subPaths;
   String get path => _path();
 
-  final Logger? _logger;
-
   @protected
   FirebaseStore({
     required FirebaseStore<dynamic> parent,
     required String path,
-    String? loggingCategory = loggingTag,
-  })  : restApi = parent.restApi,
-        subPaths = [...parent.subPaths, path],
-        _logger = loggingCategory != null ? Logger(loggingCategory) : null;
+  })   : restApi = parent.restApi,
+        subPaths = [...parent.subPaths, path];
 
   @protected
   FirebaseStore.api({
     required this.restApi,
     required this.subPaths,
-    String? loggingCategory = loggingTag,
-  }) : _logger = loggingCategory != null ? Logger(loggingCategory) : null;
+  });
 
   factory FirebaseStore.create({
     required FirebaseStore<dynamic> parent,
@@ -77,7 +71,6 @@ abstract class FirebaseStore<T> {
     required DataFromJsonCallback<T> onDataFromJson,
     required DataToJsonCallback<T> onDataToJson,
     required PatchDataCallback<T> onPatchData,
-    String? loggingCategory,
   }) = _CallbackFirebaseStore;
 
   factory FirebaseStore.apiCreate({
@@ -86,7 +79,6 @@ abstract class FirebaseStore<T> {
     required DataFromJsonCallback<T> onDataFromJson,
     required DataToJsonCallback<T> onDataToJson,
     required PatchDataCallback<T> onPatchData,
-    String? loggingCategory,
   }) = _CallbackFirebaseStore.api;
 
   FirebaseStore<U> subStore<U>({
@@ -94,7 +86,6 @@ abstract class FirebaseStore<T> {
     required DataFromJsonCallback<U> onDataFromJson,
     required DataToJsonCallback<U> onDataToJson,
     required PatchDataCallback<U> onPatchData,
-    String? loggingCategory = loggingTag,
   }) =>
       FirebaseStore.create(
         parent: this,
@@ -102,7 +93,6 @@ abstract class FirebaseStore<T> {
         onDataFromJson: onDataFromJson,
         onDataToJson: onDataToJson,
         onPatchData: onPatchData,
-        loggingCategory: loggingCategory,
       );
 
   Future<List<String>> keys({ETagReceiver? eTagReceiver}) async {
@@ -244,7 +234,7 @@ abstract class FirebaseStore<T> {
     return _transformKeyValuePairs(stream);
   }
 
-  Future<Stream<String>> streamKeys() async {
+  Future<Stream<DataEvent<String>>> streamKeys() async {
     final stream = await restApi.stream(
       path: _path(),
       shallow: true,
@@ -252,7 +242,7 @@ abstract class FirebaseStore<T> {
     return _transformKeys(stream);
   }
 
-  Future<Stream<T>> streamEntry(String key) async {
+  Future<Stream<DataEvent<T>>> streamEntry(String key) async {
     final stream = await restApi.stream(
       path: _path(key),
     );
@@ -267,7 +257,7 @@ abstract class FirebaseStore<T> {
     return _transformKeyValuePairs(stream);
   }
 
-  Future<Stream<String>> streamQueryKeys(Filter filter) async {
+  Future<Stream<DataEvent<String>>> streamQueryKeys(Filter filter) async {
     final stream = await restApi.stream(
       path: _path(),
       filter: filter,
@@ -326,7 +316,7 @@ abstract class FirebaseStore<T> {
                 yield StoreEvent.delete(match[1]!);
               }
             } else {
-              _logPathTooDeep(path);
+              yield StoreEvent.invalid(_pathTooDeepMsg(path));
             }
           }
         },
@@ -341,52 +331,59 @@ abstract class FirebaseStore<T> {
               ),
             );
           } else {
-            _logPathTooDeep(path);
+            yield StoreEvent.invalid(_pathTooDeepMsg(path));
           }
         },
         authRevoked: () => throw AuthRevokedException(),
+        unknown: (event, data) async* {
+          yield StoreEvent.invalid(_unknownEventMsg(event, data));
+        },
       );
     }
   }
 
-  Stream<String> _transformKeys(Stream<StreamEvent> stream) async* {
+  Stream<DataEvent<String>> _transformKeys(Stream<StreamEvent> stream) async* {
     final subPathRegexp = RegExp(r'^\/([^\/]+)$');
 
     await for (final event in stream) {
       yield* event.when(
         put: (path, dynamic data) async* {
-          if (path != '/') {
+          if (path == '/') {
+            yield const DataEvent.clear();
+          } else {
             final match = subPathRegexp.firstMatch(path);
             if (match != null) {
-              yield match[1]!;
+              yield DataEvent.value(match[1]!);
             } else {
-              _logPathTooDeep(path);
+              yield DataEvent.invalid(_pathTooDeepMsg(path));
             }
           }
         },
         patch: (path, dynamic data) async* {
           final match = subPathRegexp.firstMatch(path);
           if (match != null) {
-            yield match[1]!;
+            yield DataEvent.value(match[1]!);
           } else {
-            _logPathTooDeep(path);
+            yield DataEvent.invalid(_pathTooDeepMsg(path));
           }
         },
         authRevoked: () => throw AuthRevokedException(),
+        unknown: (event, data) async* {
+          yield DataEvent.invalid(_unknownEventMsg(event, data));
+        },
       );
     }
   }
 
-  Stream<T> _transformValues(Stream<StreamEvent> stream) async* {
+  Stream<DataEvent<T>> _transformValues(Stream<StreamEvent> stream) async* {
     T? currentValue;
     await for (final event in stream) {
-      final updatedValue = event.when(
+      final streamEvent = event.when<DataEvent<T>>(
         put: (path, dynamic data) {
           if (path == '/') {
-            return dataFromJson(data);
+            return DataEvent.value(dataFromJson(data));
           } else {
-            _logPathTooDeep(path);
-            return null;
+            return DataEvent.invalid(_pathTooDeepMsg(path));
           }
         },
         patch: (path, dynamic data) {
@@ -394,26 +391,32 @@ abstract class FirebaseStore<T> {
             if (currentValue == null) {
               throw PatchOnNullError();
             }
-            return patchData(
+            return DataEvent.value(patchData(
               currentValue,
               data as Map<String, dynamic>? ?? const <String, dynamic>{},
-            );
+            ));
           } else {
-            _logPathTooDeep(path);
-            return null;
+            return DataEvent.invalid(_pathTooDeepMsg(path));
           }
         },
         authRevoked: () => throw AuthRevokedException(),
+        unknown: (event, data) =>
+            DataEvent.invalid(_unknownEventMsg(event, data)),
       );
-      if (updatedValue != null) {
-        yield currentValue = updatedValue;
-      }
+      currentValue = streamEvent.when(
+        clear: () => null,
+        value: (value) => value,
+        invalid: (_) => currentValue,
+      );
+      yield streamEvent;
     }
   }
 
-  void _logPathTooDeep(String path) => _logger?.warning(
-        'Skipping stream event with path "$path", path is too deep',
-      );
+  String _pathTooDeepMsg(String path) =>
+      'Skipping stream event with path "$path", path is too deep';
+
+  String _unknownEventMsg(String event, String data) =>
+      'Received unknown server event "$event" with data: $data';
 }
 
 class _CallbackFirebaseStore<T> extends FirebaseStore<T> {
@@ -427,11 +430,9 @@ class _CallbackFirebaseStore<T> extends FirebaseStore<T> {
     required this.onDataFromJson,
     required this.onDataToJson,
     required this.onPatchData,
-    String? loggingCategory = FirebaseStore.loggingTag,
   }) : super(
           parent: parent,
           path: path,
-          loggingCategory: loggingCategory,
         );
 
   _CallbackFirebaseStore.api({
@@ -440,11 +441,9 @@ class _CallbackFirebaseStore<T> extends FirebaseStore<T> {
     required this.onDataFromJson,
     required this.onDataToJson,
     required this.onPatchData,
-    String? loggingCategory = FirebaseStore.loggingTag,
   }) : super.api(
           restApi: restApi,
           subPaths: subPaths,
-          loggingCategory: loggingCategory,
         );
 
   @override

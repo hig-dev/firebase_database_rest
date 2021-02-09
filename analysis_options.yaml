@@ -24,6 +24,5 @@ linter:
     only_throw_errors: true
     prefer_adjacent_string_concatenation: true
     prefer_expression_function_bodies: true
-    prefer_foreach: true
     prefer_single_quotes: true
     unawaited_futures: true

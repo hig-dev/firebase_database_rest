@@ -1,38 +1,35 @@
 // ignore_for_file: prefer_const_constructors
 import 'package:firebase_database_rest/src/models/timeout.dart';
 import 'package:test/test.dart' hide Timeout;
+import 'package:tuple/tuple.dart';
 
-import '../test_fixture.dart';
+import '../test_data.dart';
 
 void main() {
-  testWithData('constructs correct timeouts from unit constructors', const [
-    Fixture(Timeout.ms(10), Duration(milliseconds: 10), '10ms'),
-    Fixture(Timeout.ms(20000), Duration(seconds: 20), '20000ms'),
-    Fixture(Timeout.s(10), Duration(seconds: 10), '10s'),
-    Fixture(Timeout.s(180), Duration(minutes: 3), '180s'),
-    Fixture(Timeout.min(10), Duration(minutes: 10), '10min'),
+  testData<Tuple3<Timeout, Duration, String>>(
+      'constructs correct timeouts from unit constructors', const [
+    Tuple3(Timeout.ms(10), Duration(milliseconds: 10), '10ms'),
+    Tuple3(Timeout.ms(20000), Duration(seconds: 20), '20000ms'),
+    Tuple3(Timeout.s(10), Duration(seconds: 10), '10s'),
+    Tuple3(Timeout.s(180), Duration(minutes: 3), '180s'),
+    Tuple3(Timeout.min(10), Duration(minutes: 10), '10min'),
   ], (fixture) {
-    final timeout = fixture.get0<Timeout>();
-    final duration = fixture.get1<Duration>();
-    final stringValue = fixture.get2<String>();
-    expect(timeout.duration, duration);
-    expect(timeout.serialize(), stringValue);
+    expect(fixture.item1.duration, fixture.item2);
+    expect(fixture.item1.serialize(), fixture.item3);
   });
 
-  testWithData('fromDuration converts to correct timeout', const [
-    Fixture(Duration(milliseconds: 60), Timeout.ms(60)),
-    Fixture(Duration(milliseconds: 6000), Timeout.s(6)),
-    Fixture(Duration(milliseconds: 6500), Timeout.ms(6500)),
-    Fixture(Duration(milliseconds: 60000), Timeout.min(1)),
-    Fixture(Duration(milliseconds: 63000), Timeout.s(63)),
-    Fixture(Duration(milliseconds: 63500), Timeout.ms(63500)),
+  testData<Tuple2<Duration, Timeout>>(
+      'fromDuration converts to correct timeout', const [
+    Tuple2(Duration(milliseconds: 60), Timeout.ms(60)),
+    Tuple2(Duration(milliseconds: 6000), Timeout.s(6)),
+    Tuple2(Duration(milliseconds: 6500), Timeout.ms(6500)),
+    Tuple2(Duration(milliseconds: 60000), Timeout.min(1)),
+    Tuple2(Duration(milliseconds: 63000), Timeout.s(63)),
+    Tuple2(Duration(milliseconds: 63500), Timeout.ms(63500)),
   ], (fixture) {
-    final duration = fixture.get0<Duration>();
-    final timeout = fixture.get1<Timeout>();
-
-    final t = Timeout.fromDuration(duration);
-    expect(t, timeout);
-    expect(t.duration, duration);
+    final t = Timeout.fromDuration(fixture.item1);
+    expect(t, fixture.item2);
+    expect(t.duration, fixture.item1);
   });
 
   test(

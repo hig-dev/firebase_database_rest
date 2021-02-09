@@ -4,14 +4,7 @@ enum PrintMode {
 }
 
 extension PrintModeX on PrintMode {
-  String get value {
-    switch (this) {
-      case PrintMode.pretty:
-        return 'pretty';
-      case PrintMode.silent:
-        return 'silent';
-    }
-  }
+  String get value => toString().split('.').last;
 }
 
 enum FormatMode {
@@ -19,12 +12,7 @@ enum FormatMode {
 }
 
 extension FormatModeX on FormatMode {
-  String get value {
-    switch (this) {
-      case FormatMode.export:
-        return 'export';
-    }
-  }
+  String get value => toString().split('.').last;
 }
 
 enum WriteSizeLimit {
@@ -36,26 +24,13 @@ enum WriteSizeLimit {
 }
 
 extension WriteSizeLimitX on WriteSizeLimit {
-  String get value {
-    switch (this) {
-      case WriteSizeLimit.tiny:
-        return 'tiny';
-      case WriteSizeLimit.small:
-        return 'small';
-      case WriteSizeLimit.medium:
-        return 'medium';
-      case WriteSizeLimit.large:
-        return 'large';
-      case WriteSizeLimit.unlimited:
-        return 'unlimited';
-    }
-  }
+  String get value => toString().split('.').last;
 }
 
 abstract class ApiConstants {
   ApiConstants._();
 
-  static const serverTimeStamp = {'.sv': 'timestamp'};
+  static const serverTimeStamp = <String, dynamic>{'.sv': 'timestamp'};
   static const statusCodeETagMismatch = 412;
   static const nullETag = 'null_etag';
 }

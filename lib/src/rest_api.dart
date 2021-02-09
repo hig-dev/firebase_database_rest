@@ -1,7 +1,6 @@
 import 'dart:convert';
 
 import 'package:http/http.dart';
-import 'package:logging/logging.dart'; // ignore: import_of_legacy_library_into_null_safe
 import 'package:path/path.dart';
 
 import 'models/api_constants.dart';
@@ -14,8 +13,6 @@ import 'stream/event_source.dart';
 
 class RestApi {
   static const loggingTag = 'firebase_database_rest.RestApi';
-
-  final Logger? _logger;
 
   final Client client;
   final String database;
@@ -32,8 +29,7 @@ class RestApi {
     this.idToken,
     this.timeout,
     this.writeSizeLimit,
-    String? loggingCategory = loggingTag,
-  }) : _logger = loggingCategory != null ? Logger(loggingCategory) : null;
+  });
 
   Future<DbResponse> get({
     String? path,
@@ -43,7 +39,6 @@ class RestApi {
     Filter? filter,
     bool eTag = false,
   }) async {
-    _logger?.fine('Sending get request...');
     final response = await client.get(
       _buildUri(
         path: path,
@@ -65,7 +60,6 @@ class RestApi {
     PrintMode? printMode,
     bool eTag = false,
   }) async {
-    _logger?.fine('Sending post request...');
     final response = await client.post(
       _buildUri(
         path: path,
@@ -87,7 +81,6 @@ class RestApi {
     bool eTag = false,
     String? ifMatch,
   }) async {
-    _logger?.fine('Sending put request...');
     final response = await client.put(
       _buildUri(
         path: path,
@@ -108,7 +101,6 @@ class RestApi {
     String? path,
     PrintMode? printMode,
   }) async {
-    _logger?.fine('Sending patch request...');
     final response = await client.patch(
       _buildUri(
         path: path,
@@ -128,7 +120,6 @@ class RestApi {
     bool eTag = false,
     String? ifMatch,
   }) async {
-    _logger?.fine('Sending delete request...');
     final response = await client.delete(
       _buildUri(
         path: path,
@@ -149,7 +140,6 @@ class RestApi {
     bool? shallow,
     Filter? filter,
   }) async {
-    _logger?.fine('Sending stream request...');
     final source = await client.stream(
       _buildUri(
         path: path,
@@ -186,7 +176,6 @@ class RestApi {
         ...?filter?.filters,
       },
     );
-    _logger?.finer('> Building request URI as: ${uri.toString()}');
     return uri;
   }
 
@@ -202,7 +191,6 @@ class RestApi {
       if (eTag) 'X-Firebase-ETag': 'true',
       if (ifMatch != null) 'if-match': ifMatch,
     };
-    _logger?.finer('> Building request headers as: ${headers.toString()}');
     return headers;
   }
 
@@ -230,7 +218,6 @@ class RestApi {
 
   Stream<StreamEvent> _transformEventStream(EventSource source) async* {
     await for (final event in source) {
-      _logger?.fine('Received event of type: ${event.event}');
       switch (event.event) {
         case 'put':
           yield StreamEventPut.fromJson(
@@ -250,7 +237,10 @@ class RestApi {
           yield const StreamEvent.authRevoked();
           break;
         default:
-          _logger?.warning('Ignoring unsupported stream event: ${event.event}');
+          yield StreamEvent.unknown(
+            event: event.event,
+            data: event.data,
+          );
           break;
       }
     }
