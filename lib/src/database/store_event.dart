@@ -14,13 +14,12 @@ abstract class StoreEvent<T> with _$StoreEvent<T> {
   const factory StoreEvent.put(String key, T value) = _StorePut;
   const factory StoreEvent.delete(String key) = _StoreDelete;
   const factory StoreEvent.patch(String key, PatchSet<T> value) = _StorePatch;
-
-  const factory StoreEvent.invalid(String message) = _StoreInvalid;
+  const factory StoreEvent.invalidPath(String path) = _StoreInvalidPath;
 }
 
 @freezed
 abstract class DataEvent<T> with _$DataEvent<T> {
   const factory DataEvent.clear() = _DataClear;
   const factory DataEvent.value(T data) = _DataValue;
-  const factory DataEvent.invalid(String message) = _DataInvalid;
+  const factory DataEvent.invalidPath(String path) = _DataInvalidPath;
 }

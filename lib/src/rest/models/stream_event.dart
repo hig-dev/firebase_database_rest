@@ -17,11 +17,6 @@ abstract class StreamEvent with _$StreamEvent {
 
   const factory StreamEvent.authRevoked() = StreamEventAuthRevoked;
 
-  const factory StreamEvent.unknown({
-    required String event,
-    required String data,
-  }) = StreamEventUnknown;
-
   factory StreamEvent.fromJson(Map<String, dynamic> json) =>
       _$StreamEventFromJson(json);
 }

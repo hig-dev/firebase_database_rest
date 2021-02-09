@@ -1,6 +1,6 @@
 import 'package:meta/meta.dart';
 
-import 'models/api_constants.dart';
+import '../rest/api_constants.dart';
 
 class AlreadyComittedError extends StateError {
   AlreadyComittedError() : super('Transaction has already been committed');

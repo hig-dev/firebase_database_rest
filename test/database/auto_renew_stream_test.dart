@@ -1,9 +1,9 @@
-import 'package:firebase_database_rest/src/auth_revoked_exception.dart';
-import 'package:firebase_database_rest/src/auto_renew_stream.dart';
+import 'package:firebase_database_rest/src/database/auth_revoked_exception.dart';
+import 'package:firebase_database_rest/src/database/auto_renew_stream.dart';
 import 'package:mockito/mockito.dart';
 import 'package:test/test.dart';
 
-import 'mock_callable.dart';
+import '../mock_callable.dart';
 
 void main() {
   final mockStreamFactory = MockCallable0<Future<Stream<int>>>();

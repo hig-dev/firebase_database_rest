@@ -1,66 +1,70 @@
 import 'dart:async';
 
+import '../common/transformer_sink.dart';
+
 import 'server_sent_event.dart';
+
+class EventStreamDecoderSink extends TransformerSink<String, ServerSentEvent> {
+  String? _eventType;
+  String? _lastEventId;
+  final _data = <String>[];
+
+  EventStreamDecoderSink(EventSink<ServerSentEvent> outSink) : super(outSink);
+
+  @override
+  void add(String event) {
+    if (event.isEmpty) {
+      if (_data.isNotEmpty) {
+        outSink.add(ServerSentEvent(
+          event: _eventType ?? 'message',
+          data: _data.join('\n'),
+          lastEventId: _lastEventId,
+        ));
+      }
+      _eventType = null;
+      _data.clear();
+    } else if (event.startsWith(':')) {
+      return;
+    } else {
+      final colonIndex = event.indexOf(':');
+      var field = '';
+      var value = '';
+      if (colonIndex != -1) {
+        field = event.substring(0, colonIndex);
+        value = event.substring(colonIndex + 1);
+        if (value.startsWith(' ')) {
+          value = value.substring(1);
+        }
+      } else {
+        field = event;
+      }
+      switch (field) {
+        case 'event':
+          _eventType = value.isNotEmpty ? value : null;
+          break;
+        case 'data':
+          _data.add(value);
+          break;
+        case 'id':
+          _lastEventId = value.isNotEmpty ? value : null;
+          break;
+        // case 'retry':  Not implemented
+        default:
+          break;
+      }
+    }
+  }
+}
 
 class EventStreamDecoder implements StreamTransformer<String, ServerSentEvent> {
   const EventStreamDecoder();
 
   @override
-  Stream<ServerSentEvent> bind(Stream<String> stream) async* {
-    String? eventType;
-    String? lastEventId;
-    final data = <String>[];
-    await for (final line in stream) {
-      if (line.isEmpty) {
-        if (data.isNotEmpty) {
-          yield ServerSentEvent(
-            event: eventType ?? 'message',
-            data: data.join('\n'),
-            lastEventId: lastEventId,
-          );
-        }
-        eventType = null;
-        data.clear();
-      } else if (line.startsWith(':')) {
-        continue;
-      } else {
-        final colonIndex = line.indexOf(':');
-        var field = '';
-        var value = '';
-        if (colonIndex != -1) {
-          field = line.substring(0, colonIndex);
-          value = line.substring(colonIndex + 1);
-          if (value.startsWith(' ')) {
-            value = value.substring(1);
-          }
-        } else {
-          field = line;
-        }
-        switch (field) {
-          case 'event':
-            eventType = value.isNotEmpty ? value : null;
-            break;
-          case 'data':
-            data.add(value);
-            break;
-          case 'id':
-            lastEventId = value.isNotEmpty ? value : null;
-            break;
-          // case 'retry':  Not implemented
-          default:
-            break;
-        }
-      }
-    }
-
-    if (data.isNotEmpty) {
-      yield ServerSentEvent(
-        event: eventType ?? 'message',
-        data: data.join('\n'),
-        lastEventId: lastEventId,
+  Stream<ServerSentEvent> bind(Stream<String> stream) =>
+      Stream.eventTransformed(
+        stream,
+        (sink) => EventStreamDecoderSink(sink),
       );
-    }
-  }
 
   @override
   StreamTransformer<RS, RT> cast<RS, RT>() =>

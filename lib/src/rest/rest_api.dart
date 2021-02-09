@@ -3,13 +3,14 @@ import 'dart:convert';
 import 'package:http/http.dart';
 import 'package:path/path.dart';
 
-import 'models/api_constants.dart';
+import '../stream/event_source.dart';
+import 'api_constants.dart';
 import 'models/db_exception.dart';
 import 'models/db_response.dart';
 import 'models/filter.dart';
 import 'models/stream_event.dart';
 import 'models/timeout.dart';
-import 'stream/event_source.dart';
+import 'stream_event_transformer.dart';
 
 class RestApi {
   static const loggingTag = 'firebase_database_rest.RestApi';
@@ -150,7 +151,7 @@ class RestApi {
       ),
       headers: _buildHeaders(),
     );
-    return _transformEventStream(source);
+    return source.transform(const StreamEventTransformer());
   }
 
   Uri _buildUri({
@@ -213,36 +214,6 @@ class RestApi {
         data: json.decode(response.body),
         eTag: tag,
       );
-    }
-  }
-
-  Stream<StreamEvent> _transformEventStream(EventSource source) async* {
-    await for (final event in source) {
-      switch (event.event) {
-        case 'put':
-          yield StreamEventPut.fromJson(
-            json.decode(event.data) as Map<String, dynamic>,
-          );
-          break;
-        case 'patch':
-          yield StreamEventPatch.fromJson(
-            json.decode(event.data) as Map<String, dynamic>,
-          );
-          break;
-        case 'keep-alive':
-          break; // no-op
-        case 'cancel':
-          throw DbException(error: event.data);
-        case 'auth_revoked':
-          yield const StreamEvent.authRevoked();
-          break;
-        default:
-          yield StreamEvent.unknown(
-            event: event.event,
-            data: event.data,
-          );
-          break;
-      }
     }
   }
 }

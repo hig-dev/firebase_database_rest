@@ -1,6 +1,6 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
-import 'models/api_constants.dart';
+import '../api_constants.dart';
 
 part 'timestamp.freezed.dart';
 

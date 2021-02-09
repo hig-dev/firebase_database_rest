@@ -1,6 +1,6 @@
-import 'package:firebase_database_rest/src/models/db_response.dart';
-import 'package:firebase_database_rest/src/rest_api.dart';
-import 'package:firebase_database_rest/src/store.dart';
+import 'package:firebase_database_rest/src/database/store.dart';
+import 'package:firebase_database_rest/src/rest/models/db_response.dart';
+import 'package:firebase_database_rest/src/rest/rest_api.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
 import 'package:test/test.dart';

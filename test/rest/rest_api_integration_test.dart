@@ -1,13 +1,12 @@
+// ignore_for_file: avoid_print
 import 'package:firebase_auth_rest/firebase_auth_rest.dart';
-import 'package:firebase_database_rest/src/rest_api.dart';
+import 'package:firebase_database_rest/src/rest/rest_api.dart';
 import 'package:http/http.dart';
 import 'package:test/test.dart';
 
-import 'firebase_test_config.dart';
+import '../firebase_test_config.dart';
 
 void main() {
-  return;
-
   late Client client;
   late FirebaseAccount account;
 
@@ -41,6 +40,7 @@ void main() {
 
   test('setup and teardown work as expected', () async {
     final stream = await sut.stream(shallow: true);
+
     final sub = stream.listen((event) => print(event));
 
     try {

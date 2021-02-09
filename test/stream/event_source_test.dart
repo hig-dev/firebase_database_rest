@@ -37,6 +37,7 @@ event: ev1
 data: data1
 
 data: data2
+
 ''';
         return ByteStream(Stream.fromIterable([utf8.encode(data)]));
       });

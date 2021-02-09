@@ -1,13 +1,13 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:firebase_database_rest/src/models/api_constants.dart';
-import 'package:firebase_database_rest/src/models/db_exception.dart';
-import 'package:firebase_database_rest/src/models/db_response.dart';
-import 'package:firebase_database_rest/src/models/filter.dart';
-import 'package:firebase_database_rest/src/models/stream_event.dart';
-import 'package:firebase_database_rest/src/models/timeout.dart';
-import 'package:firebase_database_rest/src/rest_api.dart';
+import 'package:firebase_database_rest/src/rest/api_constants.dart';
+import 'package:firebase_database_rest/src/rest/models/db_exception.dart';
+import 'package:firebase_database_rest/src/rest/models/db_response.dart';
+import 'package:firebase_database_rest/src/rest/models/filter.dart';
+import 'package:firebase_database_rest/src/rest/models/stream_event.dart';
+import 'package:firebase_database_rest/src/rest/models/timeout.dart';
+import 'package:firebase_database_rest/src/rest/rest_api.dart';
 import 'package:http/http.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
@@ -817,12 +817,7 @@ void main() {
         final stream = await sut.stream();
         expect(stream, isNotNull);
 
-        expect(await stream.toList(), const [
-          StreamEvent.unknown(
-            event: '__test_event',
-            data: '42',
-          ),
-        ]);
+        fail('not implemented');
       });
     });
   });

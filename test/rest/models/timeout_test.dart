@@ -1,9 +1,9 @@
 // ignore_for_file: prefer_const_constructors
-import 'package:firebase_database_rest/src/models/timeout.dart';
+import 'package:firebase_database_rest/src/rest/models/timeout.dart';
 import 'package:test/test.dart' hide Timeout;
 import 'package:tuple/tuple.dart';
 
-import '../test_data.dart';
+import '../../test_data.dart';
 
 void main() {
   testData<Tuple3<Timeout, Duration, String>>(

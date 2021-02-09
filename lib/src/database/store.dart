@@ -3,16 +3,16 @@ import 'dart:async';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:meta/meta.dart';
 
-import '../firebase_database_rest.dart';
-import 'auth_revoked_exception.dart';
-import 'models/api_constants.dart';
-import 'models/db_response.dart';
-import 'models/filter.dart';
-import 'models/post_response.dart';
-import 'models/stream_event.dart';
-import 'patch_on_null_error.dart';
-import 'rest_api.dart';
+import '../../firebase_database_rest.dart';
+import '../rest/api_constants.dart';
+import '../rest/models/db_response.dart';
+import '../rest/models/filter.dart';
+import '../rest/models/post_response.dart';
+import '../rest/rest_api.dart';
 import 'store_event.dart';
+import 'store_event_transformer.dart';
+import 'store_key_event_transformer.dart';
+import 'store_value_event_transformer.dart';
 import 'transaction.dart';
 
 class ETagReceiver {
@@ -231,7 +231,10 @@ abstract class FirebaseStore<T> {
     final stream = await restApi.stream(
       path: _path(),
     );
-    return _transformKeyValuePairs(stream);
+    return stream.transform(StoreEventTransformer(
+      dataFromJson: dataFromJson,
+      patchSetFactory: (data) => _StorePatchSet(this, data),
+    ));
   }
 
   Future<Stream<DataEvent<String>>> streamKeys() async {
@@ -239,14 +242,17 @@ abstract class FirebaseStore<T> {
       path: _path(),
       shallow: true,
     );
-    return _transformKeys(stream);
+    return stream.transform(const StoreKeyEventTransformer());
   }
 
   Future<Stream<DataEvent<T>>> streamEntry(String key) async {
     final stream = await restApi.stream(
       path: _path(key),
     );
-    return _transformValues(stream);
+    return stream.transform(StoreValueEventTransformer(
+      dataFromJson: dataFromJson,
+      patchSetFactory: (data) => _StorePatchSet(this, data),
+    ));
   }
 
   Future<Stream<StoreEvent<T>>> streamQuery(Filter filter) async {
@@ -254,7 +260,10 @@ abstract class FirebaseStore<T> {
       path: _path(),
       filter: filter,
     );
-    return _transformKeyValuePairs(stream);
+    return stream.transform(StoreEventTransformer(
+      dataFromJson: dataFromJson,
+      patchSetFactory: (data) => _StorePatchSet(this, data),
+    ));
   }
 
   Future<Stream<DataEvent<String>>> streamQueryKeys(Filter filter) async {
@@ -263,11 +272,11 @@ abstract class FirebaseStore<T> {
       filter: filter,
       shallow: true,
     );
-    return _transformKeys(stream);
+    return stream.transform(const StoreKeyEventTransformer());
   }
 
   @protected
-  T dataFromJson(dynamic? json); // can be null
+  T dataFromJson(dynamic json); // can be null
 
   @protected
   dynamic? dataToJson(T data); // can be null
@@ -296,127 +305,6 @@ abstract class FirebaseStore<T> {
         ),
       ) ??
       {};
-
-  Stream<StoreEvent<T>> _transformKeyValuePairs(
-    Stream<StreamEvent> stream,
-  ) async* {
-    final subPathRegexp = RegExp(r'^\/([^\/]+)$');
-
-    await for (final event in stream) {
-      yield* event.when(
-        put: (path, dynamic data) async* {
-          if (path == '/') {
-            yield StoreEvent.reset(_mapTransform(data));
-          } else {
-            final match = subPathRegexp.firstMatch(path);
-            if (match != null) {
-              if (data != null) {
-                yield StoreEvent.put(match[1]!, dataFromJson(data));
-              } else {
-                yield StoreEvent.delete(match[1]!);
-              }
-            } else {
-              yield StoreEvent.invalid(_pathTooDeepMsg(path));
-            }
-          }
-        },
-        patch: (path, dynamic data) async* {
-          final match = subPathRegexp.firstMatch(path);
-          if (match != null) {
-            yield StoreEvent.patch(
-              match[1]!,
-              _StorePatchSet(
-                this,
-                data as Map<String, dynamic>? ?? const <String, dynamic>{},
-              ),
-            );
-          } else {
-            yield StoreEvent.invalid(_pathTooDeepMsg(path));
-          }
-        },
-        authRevoked: () => throw AuthRevokedException(),
-        unknown: (event, data) async* {
-          yield StoreEvent.invalid(_unknownEventMsg(event, data));
-        },
-      );
-    }
-  }
-
-  Stream<DataEvent<String>> _transformKeys(Stream<StreamEvent> stream) async* {
-    final subPathRegexp = RegExp(r'^\/([^\/]+)$');
-
-    await for (final event in stream) {
-      yield* event.when(
-        put: (path, dynamic data) async* {
-          if (path == '/') {
-            yield const DataEvent.clear();
-          } else {
-            final match = subPathRegexp.firstMatch(path);
-            if (match != null) {
-              yield DataEvent.value(match[1]!);
-            } else {
-              yield DataEvent.invalid(_pathTooDeepMsg(path));
-            }
-          }
-        },
-        patch: (path, dynamic data) async* {
-          final match = subPathRegexp.firstMatch(path);
-          if (match != null) {
-            yield DataEvent.value(match[1]!);
-          } else {
-            yield DataEvent.invalid(_pathTooDeepMsg(path));
-          }
-        },
-        authRevoked: () => throw AuthRevokedException(),
-        unknown: (event, data) async* {
-          yield DataEvent.invalid(_unknownEventMsg(event, data));
-        },
-      );
-    }
-  }
-
-  Stream<DataEvent<T>> _transformValues(Stream<StreamEvent> stream) async* {
-    T? currentValue;
-    await for (final event in stream) {
-      final streamEvent = event.when<DataEvent<T>>(
-        put: (path, dynamic data) {
-          if (path == '/') {
-            return DataEvent.value(dataFromJson(data));
-          } else {
-            return DataEvent.invalid(_pathTooDeepMsg(path));
-          }
-        },
-        patch: (path, dynamic data) {
-          if (path == '/') {
-            if (currentValue == null) {
-              throw PatchOnNullError();
-            }
-            return DataEvent.value(patchData(
-              currentValue,
-              data as Map<String, dynamic>? ?? const <String, dynamic>{},
-            ));
-          } else {
-            return DataEvent.invalid(_pathTooDeepMsg(path));
-          }
-        },
-        authRevoked: () => throw AuthRevokedException(),
-        unknown: (event, data) =>
-            DataEvent.invalid(_unknownEventMsg(event, data)),
-      );
-      currentValue = streamEvent.when(
-        clear: () => null,
-        value: (value) => value,
-        invalid: (_) => currentValue,
-      );
-      yield streamEvent;
-    }
-  }
-
-  String _pathTooDeepMsg(String path) =>
-      'Skipping stream event with path "$path", path is too deep';
-
-  String _unknownEventMsg(String event, String data) =>
-      'Received unknown server event "$event" with data: $data';
 }
 
 class _CallbackFirebaseStore<T> extends FirebaseStore<T> {

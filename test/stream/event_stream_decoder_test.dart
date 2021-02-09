@@ -5,153 +5,222 @@ import 'package:firebase_database_rest/src/stream/server_sent_event.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
 import 'package:test/test.dart';
+import 'package:tuple/tuple.dart';
 
-import '../mock_callable.dart';
-
+import '../test_data.dart';
 import 'event_stream_decoder_test.mocks.dart';
 
-class MockStream extends Mock implements Stream<String> {}
+abstract class SSESink extends EventSink<ServerSentEvent> {}
 
-@GenerateMocks([
-  // Stream,
-  StreamSubscription,
+@GenerateMocks([], customMocks: [
+  MockSpec<SSESink>(
+    returnNullOnMissingStub: true,
+  ),
 ])
 void main() {
-  final mockSub = MockStreamSubscription<String>();
-  final mockStream = MockStream();
+  group('EventStreamDecoderSink', () {
+    final mockSSESink = MockSSESink();
 
-  // ignore: prefer_const_constructors
-  final sut = EventStreamDecoder();
+    late EventStreamDecoderSink sut;
 
-  setUp(() {
-    reset(mockSub);
-    reset(mockStream);
+    setUp(() {
+      reset(mockSSESink);
 
-    when(mockStream.listen(
-      any,
-      onDone: anyNamed('onDone'),
-      onError: anyNamed('onError'),
-      cancelOnError: anyNamed('cancelOnError'),
-    )).thenReturn(mockSub);
-  });
+      sut = EventStreamDecoderSink(mockSSESink);
+    });
 
-  test('calls listen on base stream', () async {
-    // ignore: unused_local_variable
-    final sub = sut.bind(mockStream)..listen((event) {});
-    await _pump();
+    group('add', () {
+      testData<Tuple2<List<String>, ServerSentEvent?>>(
+        'generate correct events',
+        const [
+          // empty
+          Tuple2([], null),
+          Tuple2([':comment'], null),
+          // data
+          Tuple2(
+            ['data: data'],
+            ServerSentEvent(event: 'message', data: 'data'),
+          ),
+          Tuple2(
+            ['data:data'],
+            ServerSentEvent(event: 'message', data: 'data'),
+          ),
+          Tuple2(
+            ['data:  data   '],
+            ServerSentEvent(event: 'message', data: ' data   '),
+          ),
+          Tuple2(
+            ['data'],
+            ServerSentEvent(event: 'message', data: ''),
+          ),
+          Tuple2(
+            ['data: data1', 'data: data2', 'data', 'data: data3'],
+            ServerSentEvent(event: 'message', data: 'data1\ndata2\n\ndata3'),
+          ),
+          Tuple2(
+            [':comment', 'data: data'],
+            ServerSentEvent(event: 'message', data: 'data'),
+          ),
+          // event
+          Tuple2(['event: event'], null),
+          Tuple2(
+            ['event: event', 'data: data'],
+            ServerSentEvent(event: 'event', data: 'data'),
+          ),
+          Tuple2(
+            ['event:event', 'data: data'],
+            ServerSentEvent(event: 'event', data: 'data'),
+          ),
+          Tuple2(
+            ['event:  event   ', 'data: data'],
+            ServerSentEvent(event: ' event   ', data: 'data'),
+          ),
+          Tuple2(
+            ['event', 'data: data'],
+            ServerSentEvent(event: 'message', data: 'data'),
+          ),
+          Tuple2(
+            ['data: data', 'event: event'],
+            ServerSentEvent(event: 'event', data: 'data'),
+          ),
+          Tuple2(
+            ['event: event1', 'event: event2', 'data: data'],
+            ServerSentEvent(event: 'event2', data: 'data'),
+          ),
+          Tuple2(
+            [':comment', 'event: event', 'data: data'],
+            ServerSentEvent(event: 'event', data: 'data'),
+          ),
+          // id
+          Tuple2(['id: id'], null),
+          Tuple2(
+            ['data: data', 'id: id'],
+            ServerSentEvent(event: 'message', data: 'data', lastEventId: 'id'),
+          ),
+          Tuple2(
+            ['data: data', 'id:id'],
+            ServerSentEvent(event: 'message', data: 'data', lastEventId: 'id'),
+          ),
+          Tuple2(
+            ['data: data', 'id:  id  '],
+            ServerSentEvent(
+                event: 'message', data: 'data', lastEventId: ' id  '),
+          ),
+          Tuple2(
+            ['data: data', 'id'],
+            ServerSentEvent(event: 'message', data: 'data'),
+          ),
+          Tuple2(
+            ['data: data', 'id: id1', 'id: id2'],
+            ServerSentEvent(event: 'message', data: 'data', lastEventId: 'id2'),
+          ),
+          Tuple2(
+            [':comment', 'data: data', 'id: id'],
+            ServerSentEvent(event: 'message', data: 'data', lastEventId: 'id'),
+          ),
+        ],
+        (fixture) {
+          fixture.item1.forEach(sut.add);
+          sut.add(''); // complete event
 
-    verify(mockStream.listen(
-      any,
-      onDone: anyNamed('onDone'),
-      onError: anyNamed('onError'),
-      cancelOnError: true,
-    ));
-  });
-
-  test('forwards onDone event', () async {
-    final mockOnDone = MockCallable0<void>();
-
-    // ignore: unused_local_variable
-    final stream = sut.bind(mockStream)
-      ..listen(
-        (event) {},
-        onDone: mockOnDone,
+          if (fixture.item2 != null) {
+            verify(mockSSESink.add(fixture.item2));
+            verifyNoMoreInteractions(mockSSESink);
+          } else {
+            verifyZeroInteractions(mockSSESink);
+          }
+        },
       );
-    await _pump();
 
-    final onDone = verify(mockStream.listen(
-      any,
-      onDone: captureAnyNamed('onDone'),
-      onError: anyNamed('onError'),
-      cancelOnError: true,
-    )).captured.single as void Function();
-    expect(onDone, isNotNull);
+      test('clears data and event type between events', () {
+        sut
+          ..add('data: d1')
+          ..add('data: d2')
+          ..add('event: e1')
+          ..add('')
+          ..add('data: d3')
+          ..add('');
 
-    onDone();
-    await _pump();
-    verify(mockOnDone.call());
+        verify(
+          mockSSESink.add(const ServerSentEvent(data: 'd1\nd2', event: 'e1')),
+        );
+        verify(
+          mockSSESink.add(const ServerSentEvent(data: 'd3', event: 'message')),
+        );
+      });
+
+      test('keeps last event id until cleared', () {
+        sut
+          ..add('data: d1')
+          ..add('id: id1')
+          ..add('')
+          ..add('data: d2')
+          ..add('')
+          ..add('data: d3')
+          ..add('id')
+          ..add('');
+
+        verify(
+          mockSSESink
+              .add(const ServerSentEvent(data: 'd1', lastEventId: 'id1')),
+        );
+        verify(
+          mockSSESink
+              .add(const ServerSentEvent(data: 'd2', lastEventId: 'id1')),
+        );
+        verify(
+          mockSSESink.add(const ServerSentEvent(data: 'd3')),
+        );
+      });
+    });
+
+    test('addError forwards addError event', () async {
+      const error = 'error';
+      final trace = StackTrace.current;
+
+      sut.addError(error, trace);
+
+      verify(mockSSESink.addError(error, trace));
+    });
+
+    group('close', () {
+      test('forwards close event', () {
+        sut.close();
+
+        verify(mockSSESink.close());
+      });
+
+      test('does not complete partial events', () {
+        sut
+          ..add('data: d1')
+          ..close();
+
+        verifyNever(mockSSESink.add(any));
+      });
+    });
   });
 
-  test('forwards onError event', () async {
-    final mockOnError = MockCallable2<void, Object, StackTrace>();
+  group('EventStreamDecoder', () {
+    late EventStreamDecoder sut;
 
-    // ignore: unused_local_variable
-    final stream = sut.bind(mockStream)
-      ..listen(
-        (event) {},
-        onError: mockOnError,
-      );
-    await _pump();
+    setUp(() {
+      // ignore: prefer_const_constructors
+      sut = EventStreamDecoder();
+    });
 
-    final onError = verify(mockStream.listen(
-      any,
-      onDone: anyNamed('onDone'),
-      onError: captureAnyNamed('onError'),
-      cancelOnError: true,
-    )).captured.single as Function;
-    expect(onError, isNotNull);
+    test('bind creates eventTransformed stream', () async {
+      final boundStream = sut.bind(Stream.fromIterable(
+        const ['data: data', ''],
+      ));
 
-    final trace = StackTrace.current;
-    onError('error', trace);
-    await _pump();
-    verify(mockOnError.call('error', trace));
-  });
+      final res = await boundStream.single;
 
-  test('Transforms lines to events', () async {
-    final stream = sut.bind(Stream.fromIterable(const [
-      'event: ev1',
-      'data: data1',
-      '',
-      'event: ev2',
-      'data: data2.1',
-      'data',
-      'data: data2.2',
-      '',
-      'data:   data3 ',
-      'event:    ev3    ',
-      '',
-      'data: data4',
-      '',
-      'event: ev5',
-      '',
-      'event: ev6',
-      'event: ev7',
-      'data: data7',
-      '',
-      ': comment',
-      '',
-      'data: data8',
-      'id: 42',
-      '',
-      'data: data9',
-      'ignored: data',
-      '',
-      'data: data10',
-      'id',
-      '',
-      'data',
-      'event',
-    ]));
+      expect(res, const ServerSentEvent(data: 'data'));
+    });
 
-    final res = await stream.toList();
-    expect(res, const [
-      ServerSentEvent(event: 'ev1', data: 'data1'),
-      ServerSentEvent(event: 'ev2', data: 'data2.1\n\ndata2.2'),
-      ServerSentEvent(event: '   ev3    ', data: '  data3 '),
-      ServerSentEvent(event: 'message', data: 'data4'),
-      ServerSentEvent(event: 'ev7', data: 'data7'),
-      ServerSentEvent(event: 'message', data: 'data8', lastEventId: '42'),
-      ServerSentEvent(event: 'message', data: 'data9', lastEventId: '42'),
-      ServerSentEvent(event: 'message', data: 'data10'),
-      ServerSentEvent(event: 'message', data: ''),
-    ]);
-  });
-
-  test('cast returns transformed instance', () {
-    final castTransformer = sut.cast<String, ServerSentEvent>();
-    expect(castTransformer, isNotNull);
+    test('cast returns transformed instance', () {
+      final castTransformer = sut.cast<String, ServerSentEvent>();
+      expect(castTransformer, isNotNull);
+    });
   });
 }
-
-Future<void> _pump([Duration duration = Duration.zero]) =>
-    Future<void>.delayed(duration);
