@@ -1,8 +1,9 @@
 import 'dart:async';
 
-import '../../firebase_database_rest.dart';
-import '../../rest.dart';
 import '../common/transformer_sink.dart';
+import '../rest/models/stream_event.dart';
+import 'auth_revoked_exception.dart';
+import 'store_event.dart';
 
 class StoreKeyEventTransformerSink
     extends TransformerSink<StreamEvent, DataEvent<String>> {
