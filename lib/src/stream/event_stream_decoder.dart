@@ -1,9 +1,12 @@
 import 'dart:async';
 
+import 'package:meta/meta.dart';
+
 import '../common/transformer_sink.dart';
 
 import 'server_sent_event.dart';
 
+@internal
 class EventStreamDecoderSink extends TransformerSink<String, ServerSentEvent> {
   String? _eventType;
   String? _lastEventId;

@@ -1,10 +1,13 @@
 import 'dart:async';
 
-import '../common/transformer_sink.dart';
-import '../rest/models/stream_event.dart';
-import 'auth_revoked_exception.dart';
-import 'store_event.dart';
+import 'package:meta/meta.dart';
 
+import '../../common/transformer_sink.dart';
+import '../../rest/models/stream_event.dart';
+import '../auth_revoked_exception.dart';
+import '../store_event.dart';
+
+@internal
 class StoreKeyEventTransformerSink
     extends TransformerSink<StreamEvent, DataEvent<String>> {
   static final subPathRegexp = RegExp(r'^\/([^\/]+)$');

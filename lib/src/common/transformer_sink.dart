@@ -1,5 +1,8 @@
 import 'dart:async';
 
+import 'package:meta/meta.dart';
+
+@internal
 abstract class TransformerSink<TSource, TDest> implements EventSink<TSource> {
   final EventSink<TDest> outSink;
 

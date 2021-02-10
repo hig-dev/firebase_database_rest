@@ -1,14 +1,17 @@
 import 'dart:async';
 
-import '../common/transformer_sink.dart';
-import '../rest/models/stream_event.dart';
-import 'auth_revoked_exception.dart';
-import 'store_event.dart';
+import 'package:meta/meta.dart';
+
+import '../../common/transformer_sink.dart';
+import '../../rest/models/stream_event.dart';
+import '../auth_revoked_exception.dart';
+import '../store_event.dart';
 
 typedef DataFromJsonFn<T> = T Function(dynamic json);
 
 typedef PatchSetFactory<T> = PatchSet<T> Function(Map<String, dynamic> data);
 
+@internal
 class StoreEventTransformerSink<T>
     extends TransformerSink<StreamEvent, StoreEvent<T>> {
   static final subPathRegexp = RegExp(r'^\/([^\/]+)$');

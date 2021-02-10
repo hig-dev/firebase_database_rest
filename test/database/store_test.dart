@@ -1,3 +1,4 @@
+import 'package:firebase_database_rest/src/database/etag_receiver.dart';
 import 'package:firebase_database_rest/src/database/store.dart';
 import 'package:firebase_database_rest/src/rest/models/db_response.dart';
 import 'package:firebase_database_rest/src/rest/rest_api.dart';
