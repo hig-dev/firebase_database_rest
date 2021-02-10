@@ -13,8 +13,6 @@ import 'models/timeout.dart';
 import 'stream_event_transformer.dart';
 
 class RestApi {
-  static const loggingTag = 'firebase_database_rest.RestApi';
-
   final Client client;
   final String database;
   final String basePath;

@@ -7,6 +7,7 @@ import 'package:firebase_database_rest/src/rest/models/db_response.dart';
 import 'package:firebase_database_rest/src/rest/models/filter.dart';
 import 'package:firebase_database_rest/src/rest/models/stream_event.dart';
 import 'package:firebase_database_rest/src/rest/models/timeout.dart';
+import 'package:firebase_database_rest/src/rest/models/unknown_stream_event_error.dart';
 import 'package:firebase_database_rest/src/rest/rest_api.dart';
 import 'package:http/http.dart';
 import 'package:mockito/annotations.dart';
@@ -669,7 +670,7 @@ void main() {
             .thenAnswer((i) async => mockStreamedResponse);
       });
 
-      test('calls client.delete with default parameters', () async {
+      test('calls client.stream with default parameters', () async {
         await sut.stream();
 
         _verifyStream(
@@ -761,26 +762,25 @@ void main() {
 
         final stream = await sut.stream();
         final events = <StreamEvent>[];
+        final errors = <Object>[];
         final completer = Completer<void>();
         stream.listen(
           events.add,
-          onError: completer.completeError,
-          onDone: () {
-            if (!completer.isCompleted) {
-              completer.complete();
-            }
-          },
+          onError: errors.add,
+          onDone: completer.complete,
+          cancelOnError: false,
         );
 
-        await expectLater(
-          () => completer.future,
-          throwsA(const DbException(
-            statusCode: 400,
-            error: 'error',
-          )),
-        );
+        await completer.future;
         expect(events, const [
           StreamEventPut(path: '/a', data: null),
+          StreamEventPut(path: '/b', data: null),
+        ]);
+        expect(errors, const [
+          DbException(
+            statusCode: ApiConstants.eventStreamCanceled,
+            error: 'error',
+          ),
         ]);
       });
 
@@ -807,7 +807,7 @@ void main() {
         ]);
       });
 
-      test('yield unknown on unknown event', () async {
+      test('throws error on unknown event', () async {
         _mockStream(mockStreamedResponse, const [
           'event: __test_event\n',
           'data: 42\n',
@@ -817,7 +817,7 @@ void main() {
         final stream = await sut.stream();
         expect(stream, isNotNull);
 
-        fail('not implemented');
+        expect(stream.single, throwsA(isA<UnknownStreamEventError>()));
       });
     });
   });

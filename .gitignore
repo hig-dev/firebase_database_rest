@@ -16,8 +16,7 @@ doc/api/
 coverage/
 
 # Firebase config
-test/firebase_test_config.dart
-test/firebase_config.*.dart
+.env
 
 # Mocks
 *.mocks.dart

@@ -4,7 +4,7 @@ import 'package:firebase_database_rest/src/rest/rest_api.dart';
 import 'package:http/http.dart';
 import 'package:test/test.dart';
 
-import '../firebase_test_config.dart';
+import '../test_config.dart';
 
 void main() {
   late Client client;
@@ -15,7 +15,7 @@ void main() {
 
   setUpAll(() async {
     client = Client();
-    final auth = FirebaseAuth(client, firebaseConfig.apiKey);
+    final auth = FirebaseAuth(client, TestConfig.apiKey);
     account = await auth.signUpAnonymous(autoRefresh: false);
   });
 
@@ -27,7 +27,7 @@ void main() {
   setUp(() {
     sut = RestApi(
       client: client,
-      database: firebaseConfig.projectId,
+      database: TestConfig.projectId,
       basePath:
           'firebase_database_rest/${account.localId}/_test_path_${caseCtr++}',
       idToken: account.idToken,

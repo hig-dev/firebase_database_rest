@@ -13,9 +13,7 @@ import 'event_stream_decoder_test.mocks.dart';
 abstract class SSESink extends EventSink<ServerSentEvent> {}
 
 @GenerateMocks([], customMocks: [
-  MockSpec<SSESink>(
-    returnNullOnMissingStub: true,
-  ),
+  MockSpec<SSESink>(returnNullOnMissingStub: true),
 ])
 void main() {
   group('EventStreamDecoderSink', () {

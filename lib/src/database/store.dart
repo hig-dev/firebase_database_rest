@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:meta/meta.dart';
 
-import '../../firebase_database_rest.dart';
 import '../rest/api_constants.dart';
 import '../rest/models/db_response.dart';
 import '../rest/models/filter.dart';
@@ -46,8 +45,6 @@ typedef PatchDataCallback<T> = T Function(
 );
 
 abstract class FirebaseStore<T> {
-  static const loggingTag = 'firebase_database_rest.FirebaseStore';
-
   final RestApi restApi;
   final List<String> subPaths;
   String get path => _path();
@@ -279,7 +276,7 @@ abstract class FirebaseStore<T> {
   T dataFromJson(dynamic json); // can be null
 
   @protected
-  dynamic? dataToJson(T data); // can be null
+  dynamic dataToJson(T data); // can be null
 
   @protected
   T patchData(T data, Map<String, dynamic> updatedFields);

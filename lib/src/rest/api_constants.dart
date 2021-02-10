@@ -28,9 +28,11 @@ extension WriteSizeLimitX on WriteSizeLimit {
 }
 
 abstract class ApiConstants {
-  ApiConstants._();
+  const ApiConstants._();
 
   static const serverTimeStamp = <String, dynamic>{'.sv': 'timestamp'};
   static const statusCodeETagMismatch = 412;
   static const nullETag = 'null_etag';
+
+  static const eventStreamCanceled = 542;
 }

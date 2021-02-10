@@ -1,12 +1,16 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:meta/meta.dart';
+
 import '../common/transformer_sink.dart';
 import '../stream/server_sent_event.dart';
+import 'api_constants.dart';
 import 'models/db_exception.dart';
 import 'models/stream_event.dart';
 import 'models/unknown_stream_event_error.dart';
 
+@internal
 class StreamEventTransformerSink
     extends TransformerSink<ServerSentEvent, StreamEvent> {
   StreamEventTransformerSink(EventSink<StreamEvent> outSink) : super(outSink);
@@ -27,7 +31,10 @@ class StreamEventTransformerSink
       case 'keep-alive':
         break; // no-op
       case 'cancel':
-        outSink.addError(DbException(error: event.data));
+        outSink.addError(DbException(
+          statusCode: ApiConstants.eventStreamCanceled,
+          error: event.data,
+        ));
         break;
       case 'auth_revoked':
         outSink.add(const StreamEvent.authRevoked());

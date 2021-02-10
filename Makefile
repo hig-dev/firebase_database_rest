@@ -1,17 +1,7 @@
-# files
+#get 
 .packages: pubspec.yaml
 	dart pub get
 
-# hooks
-hook: get unhook
-	echo '#!/bin/sh' > .git/hooks/pre-commit
-	echo 'exec dart pub run --no-sound-null-safety dart_pre_commit -p -oany -n --ansi' >> .git/hooks/pre-commit
-	chmod a+x .git/hooks/pre-commit
-
-unhook:
-	rm -f .git/hooks/pre-commit
-
-# targets
 get: .packages
 
 get-clean:
@@ -19,28 +9,45 @@ get-clean:
 	rm -rf .packages
 	$(MAKE) get
 
-upgrade: get
+upgrade: .packages
 	dart pub upgrade
 
-build: get
+# hooks
+hook: .packages unhook
+	echo '#!/bin/sh' > .git/hooks/pre-commit
+	echo 'exec dart pub run --no-sound-null-safety dart_pre_commit -p -oany -n --ansi' >> .git/hooks/pre-commit
+	chmod a+x .git/hooks/pre-commit
+
+unhook:
+	rm -f .git/hooks/pre-commit
+
+# build
+build: .packages
 	dart run build_runner build
 
 build-clean: upgrade
 	dart run build_runner build --delete-conflicting-outputs
 	
-watch: get
+watch: .packages
 	dart run build_runner watch
 	
 watch-clean: upgrade
 	dart run build_runner watch --delete-conflicting-outputs
 
-analyze: get
+# analyze
+analyze: .packages
 	dart analyze --fatal-infos
 
+# test
 test: get
-	dart --no-sound-null-safety test
+	@test -n "$(FIREBASE_PROJECT_ID)"
+	@test -n "$(FIREBASE_API_KEY)"
+	dart --no-sound-null-safety test test/rest/rest_api_integration_test.dart
 
-coverage/.generated: $(wildcard test/*.dart) $(wildcard src/*.dart) $(wildcard bin/*.dart)
+# coverage
+coverage/.generated: .packages $(wildcard test/*.dart) $(wildcard src/*.dart) $(wildcard bin/*.dart)
+	@test -n "$(FIREBASE_PROJECT_ID)"
+	@test -n "$(FIREBASE_API_KEY)"
 	@rm -rf coverage
 	dart --no-sound-null-safety test --coverage=coverage
 	touch coverage/.generated
@@ -68,13 +75,17 @@ test-coverage: coverage/lcov.info
 coverage-open: coverage/html/index.html
 	xdg-open coverage/html/index.html || start coverage/html/index.html
 
-doc: get
+#doc 
+doc/api/index.html: .packages $(wildcard src/*.dart) $(wildcard bin/*.dart)
 	@rm -rf doc
 	dartdoc --show-progress
+
+doc: doc/api/index.html
 
 doc-open: doc
 	xdg-open doc/api/index.html || start doc/api/index.html
 
+# publish
 pre-publish:
 	rm lib/src/.gitignore
 
@@ -83,21 +94,24 @@ post-publish:
 	echo '*.freezed.dart' >> lib/src/.gitignore
 	echo '*.g.dart' >> lib/src/.gitignore
 
-publish-dry: get
+publish-dry: .packages
 	$(MAKE) pre-publish
 	dart pub publish --dry-run
 	$(MAKE) post-publish
 
-publish: get
+publish: .packages
 	$(MAKE) pre-publish
 	dart pub publish --force
 	$(MAKE) post-publish
 
-verify: get
+# verify
+verify:
 	$(MAKE) build-clean
 	$(MAKE) analyze
 	$(MAKE) coverage-open
 	$(MAKE) doc-open
 	$(MAKE) publish-dry
+
+
 
 .PHONY: build test coverage doc

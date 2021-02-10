@@ -79,7 +79,6 @@ class FirebaseDatabase {
     required DataFromJsonCallback<T> onDataFromJson,
     required DataToJsonCallback<T> onDataToJson,
     required PatchDataCallback<T> onPatchData,
-    String loggingCategory = FirebaseStore.loggingTag,
   }) =>
       FirebaseStore.apiCreate(
         restApi: api,
