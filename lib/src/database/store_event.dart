@@ -2,6 +2,7 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 
 part 'store_event.freezed.dart';
 
+@immutable
 abstract class PatchSet<T> {
   const PatchSet._();
 

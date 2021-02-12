@@ -8,7 +8,7 @@ import '../auth_revoked_exception.dart';
 import '../patch_on_null_error.dart';
 import '../store_event.dart';
 
-typedef DataFromJsonFn<T> = T Function(dynamic json);
+typedef DataFromJsonFn<T> = T? Function(dynamic json);
 
 typedef PatchSetFactory<T> = PatchSet<T> Function(Map<String, dynamic> data);
 

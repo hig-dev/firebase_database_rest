@@ -198,7 +198,9 @@ class RestApi {
     bool eTag,
   ) {
     final tag = eTag ? response.headers['etag'] : null;
-    if (response.statusCode >= 300) {
+    if (response.statusCode == ApiConstants.statusCodeETagMismatch) {
+      throw const DbException(statusCode: ApiConstants.statusCodeETagMismatch);
+    } else if (response.statusCode >= 300) {
       throw DbException.fromJson(
         json.decode(response.body) as Map<String, dynamic>,
       ).copyWith(statusCode: response.statusCode);

@@ -19,9 +19,9 @@ class ETagReceiver {
       return true;
     }
 
-    return other is ETagReceiver && eTag == other.eTag;
+    return other is ETagReceiver && _eTag == other._eTag;
   }
 
   @override
-  int get hashCode => runtimeType.hashCode ^ (eTag?.hashCode ?? 0);
+  int get hashCode => runtimeType.hashCode ^ _eTag.hashCode;
 }

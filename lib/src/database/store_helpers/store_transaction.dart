@@ -1,8 +1,12 @@
+import 'package:freezed_annotation/freezed_annotation.dart';
+
 import '../../rest/api_constants.dart';
+import '../../rest/models/db_exception.dart';
 import '../etag_receiver.dart';
 import '../store.dart';
 import '../transaction.dart';
 
+@internal
 class StoreTransaction<T> extends SingleCommitTransaction<T> {
   final FirebaseStore<T> store;
 
@@ -10,12 +14,11 @@ class StoreTransaction<T> extends SingleCommitTransaction<T> {
   final String key;
 
   @override
-  final T value;
+  final T? value;
 
   @override
   final String eTag;
 
-  final bool silent;
   final ETagReceiver? eTagReceiver;
 
   StoreTransaction({
@@ -23,33 +26,41 @@ class StoreTransaction<T> extends SingleCommitTransaction<T> {
     required this.key,
     required this.value,
     required this.eTag,
-    required this.silent,
     required this.eTagReceiver,
   });
 
   @override
   Future<T?> commitUpdateImpl(T data) async {
-    final response = await store.restApi.put(
-      // ignore: invalid_use_of_protected_member
-      store.dataToJson(data),
-      path: store.buildPath(key),
-      printMode: silent ? PrintMode.silent : null,
-      ifMatch: eTag,
-      eTag: eTagReceiver != null,
-    );
-    store.applyETag(eTagReceiver, response);
-    // ignore: invalid_use_of_protected_member
-    return silent ? null : store.dataFromJson(response.data);
+    try {
+      return await store.write(
+        key,
+        data,
+        eTag: eTag,
+        eTagReceiver: eTagReceiver,
+      );
+    } on DbException catch (e) {
+      if (e.statusCode == ApiConstants.statusCodeETagMismatch) {
+        throw const TransactionFailedException();
+      } else {
+        rethrow;
+      }
+    }
   }
 
   @override
   Future<void> commitDeleteImpl() async {
-    final response = await store.restApi.delete(
-      path: store.buildPath(key),
-      printMode: PrintMode.silent,
-      ifMatch: eTag,
-      eTag: eTagReceiver != null,
-    );
-    store.applyETag(eTagReceiver, response);
+    try {
+      await store.delete(
+        key,
+        eTag: eTag,
+        eTagReceiver: eTagReceiver,
+      );
+    } on DbException catch (e) {
+      if (e.statusCode == ApiConstants.statusCodeETagMismatch) {
+        throw const TransactionFailedException();
+      } else {
+        rethrow;
+      }
+    }
   }
 }

@@ -42,14 +42,14 @@ analyze: .packages
 test: get
 	@test -n "$(FIREBASE_PROJECT_ID)"
 	@test -n "$(FIREBASE_API_KEY)"
-	dart --no-sound-null-safety test test/rest/rest_api_integration_test.dart
+	dart --no-sound-null-safety --null-assertions test
 
 # coverage
 coverage/.generated: .packages $(wildcard test/*.dart) $(wildcard src/*.dart) $(wildcard bin/*.dart)
 	@test -n "$(FIREBASE_PROJECT_ID)"
 	@test -n "$(FIREBASE_API_KEY)"
 	@rm -rf coverage
-	dart --no-sound-null-safety test --coverage=coverage
+	dart --no-sound-null-safety --null-assertions test --coverage=coverage
 	touch coverage/.generated
 
 coverage/lcov.info: coverage/.generated

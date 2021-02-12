@@ -29,6 +29,7 @@ jobs:
       - run: make analyze
       - run: make test-coverage
         env:
+          FIREBASE_ALL_TEST_LIMIT: 500
           FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
           FIREBASE_API_KEY: ${{ secrets.FIREBASE_API_KEY }}
       - uses: VeryGoodOpenSource/very_good_coverage@v1.1.1

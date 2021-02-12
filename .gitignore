@@ -18,5 +18,7 @@ coverage/
 # Firebase config
 .env
 
-# Mocks
+# Test stuff
 *.mocks.dart
+test/**/*.freezed.dart
+test/**/*.g.dart

@@ -75,7 +75,6 @@ class FirebaseDatabase {
   }
 
   FirebaseStore<T> createRootStore<T>({
-    required String path,
     required DataFromJsonCallback<T> onDataFromJson,
     required DataToJsonCallback<T> onDataToJson,
     required PatchDataCallback<T> onPatchData,
@@ -87,4 +86,6 @@ class FirebaseDatabase {
         onDataToJson: onDataToJson,
         onPatchData: onPatchData,
       );
+
+  // TODO add full delete
 }

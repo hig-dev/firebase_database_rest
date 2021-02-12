@@ -1,19 +1,11 @@
 import 'package:meta/meta.dart';
 
-import '../rest/api_constants.dart';
-
 class AlreadyComittedError extends StateError {
   AlreadyComittedError() : super('Transaction has already been committed');
 }
 
 class TransactionFailedException implements Exception {
-  final String oldETag;
-  final String newETag;
-
-  TransactionFailedException({
-    this.oldETag = ApiConstants.nullETag,
-    this.newETag = ApiConstants.nullETag,
-  });
+  const TransactionFailedException();
 
   @override
   String toString() => 'Transaction failed - '
@@ -22,7 +14,7 @@ class TransactionFailedException implements Exception {
 
 abstract class FirebaseTransaction<T> {
   String get key;
-  T get value;
+  T? get value;
   String get eTag;
 
   Future<T?> commitUpdate(T data);

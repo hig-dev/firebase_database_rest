@@ -18,9 +18,9 @@ import 'store_helpers/store_transaction.dart';
 import 'store_helpers/store_value_event_transformer.dart';
 import 'transaction.dart';
 
-typedef DataFromJsonCallback<T> = T Function(dynamic json);
+typedef DataFromJsonCallback<T> = T? Function(dynamic json);
 
-typedef DataToJsonCallback<T> = dynamic Function(T data);
+typedef DataToJsonCallback<T> = dynamic Function(T? data);
 
 typedef PatchDataCallback<T> = T Function(
   T data,
@@ -30,7 +30,8 @@ typedef PatchDataCallback<T> = T Function(
 abstract class FirebaseStore<T> {
   final RestApi restApi;
   final List<String> subPaths;
-  String get path => buildPath();
+
+  String get path => _buildPath();
 
   @protected
   FirebaseStore({
@@ -77,29 +78,29 @@ abstract class FirebaseStore<T> {
 
   Future<List<String>> keys({ETagReceiver? eTagReceiver}) async {
     final response = await restApi.get(
-      path: buildPath(),
-      shallow: true,
+      path: _buildPath(),
+      shallow: eTagReceiver == null,
       eTag: eTagReceiver != null,
     );
-    applyETag(eTagReceiver, response);
+    _applyETag(eTagReceiver, response);
     return (response.data as Map<String, dynamic>?)?.keys.toList() ?? [];
   }
 
   Future<Map<String, T>> all({ETagReceiver? eTagReceiver}) async {
     final response = await restApi.get(
-      path: buildPath(),
+      path: _buildPath(),
       eTag: eTagReceiver != null,
     );
-    applyETag(eTagReceiver, response);
+    _applyETag(eTagReceiver, response);
     return _mapTransform(response.data);
   }
 
   Future<T?> read(String key, {ETagReceiver? eTagReceiver}) async {
     final response = await restApi.get(
-      path: buildPath(key),
+      path: _buildPath(key),
       eTag: eTagReceiver != null,
     );
-    applyETag(eTagReceiver, response);
+    _applyETag(eTagReceiver, response);
     return dataFromJson(response.data);
   }
 
@@ -112,22 +113,22 @@ abstract class FirebaseStore<T> {
   }) async {
     final response = await restApi.put(
       dataToJson(data),
-      path: buildPath(key),
-      printMode: silent ? PrintMode.silent : null,
+      path: _buildPath(key),
+      printMode: silent && eTag == null ? PrintMode.silent : null,
       ifMatch: eTag,
       eTag: eTagReceiver != null,
     );
-    applyETag(eTagReceiver, response);
+    _applyETag(eTagReceiver, response);
     return silent ? null : dataFromJson(response.data);
   }
 
   Future<String> create(T data, {ETagReceiver? eTagReceiver}) async {
     final response = await restApi.post(
       dataToJson(data),
-      path: buildPath(),
+      path: _buildPath(),
       eTag: eTagReceiver != null,
     );
-    applyETag(eTagReceiver, response);
+    _applyETag(eTagReceiver, response);
     final result = PostResponse.fromJson(response.data as Map<String, dynamic>);
     return result.name;
   }
@@ -135,30 +136,30 @@ abstract class FirebaseStore<T> {
   Future<T?> update(
     String key,
     Map<String, dynamic> updateFields, {
-    bool silent = false,
+    T? currentData,
   }) async {
     final response = await restApi.patch(
       updateFields,
-      path: buildPath(key),
-      printMode: silent ? PrintMode.silent : null,
+      path: _buildPath(key),
+      printMode: currentData == null ? PrintMode.silent : null,
     );
-    return silent ? null : dataFromJson(response.data);
+    return currentData != null
+        ? patchData(currentData, response.data as Map<String, dynamic>)
+        : null;
   }
 
-  Future<T?> delete(
+  Future<void> delete(
     String key, {
-    bool silent = false,
     String? eTag,
     ETagReceiver? eTagReceiver,
   }) async {
     final response = await restApi.delete(
-      path: buildPath(key),
-      printMode: silent ? PrintMode.silent : null,
+      path: _buildPath(key),
+      printMode: eTag == null ? PrintMode.silent : null,
       ifMatch: eTag,
       eTag: eTagReceiver != null,
     );
-    applyETag(eTagReceiver, response);
-    return silent ? null : dataFromJson(response.data);
+    _applyETag(eTagReceiver, response);
   }
 
   Future<Map<String, T>> query(
@@ -166,11 +167,11 @@ abstract class FirebaseStore<T> {
     ETagReceiver? eTagReceiver,
   }) async {
     final response = await restApi.get(
-      path: buildPath(),
+      path: _buildPath(),
       filter: filter,
       eTag: eTagReceiver != null,
     );
-    applyETag(eTagReceiver, response);
+    _applyETag(eTagReceiver, response);
     return _mapTransform(response.data);
   }
 
@@ -179,22 +180,21 @@ abstract class FirebaseStore<T> {
     ETagReceiver? eTagReceiver,
   }) async {
     final response = await restApi.get(
-      path: buildPath(),
+      path: _buildPath(),
       filter: filter,
-      shallow: true,
+      shallow: eTagReceiver != null,
       eTag: eTagReceiver != null,
     );
-    applyETag(eTagReceiver, response);
+    _applyETag(eTagReceiver, response);
     return (response.data as Map<String, dynamic>?)?.keys.toList() ?? [];
   }
 
   Future<FirebaseTransaction<T>> transaction(
     String key, {
-    bool silent = false,
     ETagReceiver? eTagReceiver,
   }) async {
     final response = await restApi.get(
-      path: buildPath(key),
+      path: _buildPath(key),
       eTag: true,
     );
     return StoreTransaction(
@@ -202,14 +202,13 @@ abstract class FirebaseStore<T> {
       key: key,
       value: dataFromJson(response.data),
       eTag: response.eTag!,
-      silent: silent,
       eTagReceiver: eTagReceiver,
     );
   }
 
   Future<Stream<StoreEvent<T>>> streamAll() async {
     final stream = await restApi.stream(
-      path: buildPath(),
+      path: _buildPath(),
     );
     return stream.transform(StoreEventTransformer(
       dataFromJson: dataFromJson,
@@ -219,7 +218,7 @@ abstract class FirebaseStore<T> {
 
   Future<Stream<DataEvent<String>>> streamKeys() async {
     final stream = await restApi.stream(
-      path: buildPath(),
+      path: _buildPath(),
       shallow: true,
     );
     return stream.transform(const StoreKeyEventTransformer());
@@ -227,7 +226,7 @@ abstract class FirebaseStore<T> {
 
   Future<Stream<DataEvent<T>>> streamEntry(String key) async {
     final stream = await restApi.stream(
-      path: buildPath(key),
+      path: _buildPath(key),
     );
     return stream.transform(StoreValueEventTransformer(
       dataFromJson: dataFromJson,
@@ -237,7 +236,7 @@ abstract class FirebaseStore<T> {
 
   Future<Stream<StoreEvent<T>>> streamQuery(Filter filter) async {
     final stream = await restApi.stream(
-      path: buildPath(),
+      path: _buildPath(),
       filter: filter,
     );
     return stream.transform(StoreEventTransformer(
@@ -248,7 +247,7 @@ abstract class FirebaseStore<T> {
 
   Future<Stream<DataEvent<String>>> streamQueryKeys(Filter filter) async {
     final stream = await restApi.stream(
-      path: buildPath(),
+      path: _buildPath(),
       filter: filter,
       shallow: true,
     );
@@ -256,20 +255,18 @@ abstract class FirebaseStore<T> {
   }
 
   @protected
-  T dataFromJson(dynamic json); // can be null
+  T? dataFromJson(dynamic json); // json can be null
 
   @protected
-  dynamic dataToJson(T data); // can be null
+  dynamic dataToJson(T? data); // return can be null
 
   @protected
   T patchData(T data, Map<String, dynamic> updatedFields);
 
-  @internal
-  String buildPath([String? key]) =>
+  String _buildPath([String? key]) =>
       (key != null ? [...subPaths, key] : subPaths).join('/');
 
-  @internal
-  void applyETag(ETagReceiver? eTagReceiver, DbResponse response) {
+  void _applyETag(ETagReceiver? eTagReceiver, DbResponse response) {
     if (eTagReceiver != null) {
       assert(
         response.eTag != null,
@@ -279,12 +276,19 @@ abstract class FirebaseStore<T> {
     }
   }
 
-  Map<String, T> _mapTransform(dynamic data) =>
-      (data as Map<String, dynamic>?)?.map(
-        (key, dynamic value) => MapEntry(
-          key,
-          dataFromJson(value),
-        ),
-      ) ??
-      {};
+  // TODO refactor to helper class
+  Map<String, T> _mapTransform(dynamic data) => Map.fromEntries(
+        (data as Map<String, dynamic>? ?? <String, dynamic>{})
+            .entries
+            .map(
+              (entry) => MapEntry(
+                entry.key,
+                dataFromJson(entry.value),
+              ),
+            )
+            .where((entry) => entry.value != null)
+            .cast(),
+      );
+
+  // TODO add destroy
 }

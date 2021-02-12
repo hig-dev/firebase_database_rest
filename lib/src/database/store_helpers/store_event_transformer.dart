@@ -7,7 +7,7 @@ import '../../rest/models/stream_event.dart';
 import '../auth_revoked_exception.dart';
 import '../store_event.dart';
 
-typedef DataFromJsonFn<T> = T Function(dynamic json);
+typedef DataFromJsonFn<T> = T? Function(dynamic json);
 
 typedef PatchSetFactory<T> = PatchSet<T> Function(Map<String, dynamic> data);
 
@@ -42,16 +42,18 @@ class StoreEventTransformerSink<T>
 
   void _reset(Map<String, dynamic>? data) => outSink.add(
         StoreEvent.reset(
+          // TODO refactor to helper class
           Map.fromEntries(
             (data ?? <String, dynamic>{})
                 .entries
-                .where((entry) => entry.value != null)
                 .map(
                   (entry) => MapEntry(
                     entry.key,
                     dataFromJson(entry.value),
                   ),
-                ),
+                )
+                .where((entry) => entry.value != null)
+                .cast(),
           ),
         ),
       );
@@ -59,8 +61,9 @@ class StoreEventTransformerSink<T>
   void _update(String path, dynamic data) {
     final match = subPathRegexp.firstMatch(path);
     if (match != null) {
-      if (data != null) {
-        outSink.add(StoreEvent.put(match[1]!, dataFromJson(data)));
+      final parsedData = dataFromJson(data);
+      if (parsedData != null) {
+        outSink.add(StoreEvent.put(match[1]!, parsedData));
       } else {
         outSink.add(StoreEvent.delete(match[1]!));
       }
