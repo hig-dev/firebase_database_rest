@@ -11,16 +11,17 @@ abstract class PatchSet<T> {
 
 @freezed
 abstract class StoreEvent<T> with _$StoreEvent<T> {
-  const factory StoreEvent.reset(Map<String, T> data) = _StoreReset;
-  const factory StoreEvent.put(String key, T value) = _StorePut;
-  const factory StoreEvent.delete(String key) = _StoreDelete;
-  const factory StoreEvent.patch(String key, PatchSet<T> value) = _StorePatch;
-  const factory StoreEvent.invalidPath(String path) = _StoreInvalidPath;
+  const factory StoreEvent.reset(Map<String, T> data) = _StoreReset<T>;
+  const factory StoreEvent.put(String key, T value) = _StorePut<T>;
+  const factory StoreEvent.delete(String key) = _StoreDelete<T>;
+  const factory StoreEvent.patch(String key, PatchSet<T> value) =
+      _StorePatch<T>;
+  const factory StoreEvent.invalidPath(String path) = _StoreInvalidPath<T>;
 }
 
 @freezed
 abstract class DataEvent<T> with _$DataEvent<T> {
-  const factory DataEvent.clear() = _DataClear;
-  const factory DataEvent.value(T data) = _DataValue;
-  const factory DataEvent.invalidPath(String path) = _DataInvalidPath;
+  const factory DataEvent.clear() = _DataClear<T>;
+  const factory DataEvent.value(T data) = _DataValue<T>;
+  const factory DataEvent.invalidPath(String path) = _DataInvalidPath<T>;
 }

@@ -162,30 +162,19 @@ abstract class FirebaseStore<T> {
     _applyETag(eTagReceiver, response);
   }
 
-  Future<Map<String, T>> query(
-    Filter filter, {
-    ETagReceiver? eTagReceiver,
-  }) async {
+  Future<Map<String, T>> query(Filter filter) async {
     final response = await restApi.get(
       path: _buildPath(),
       filter: filter,
-      eTag: eTagReceiver != null,
     );
-    _applyETag(eTagReceiver, response);
     return _mapTransform(response.data);
   }
 
-  Future<List<String>> queryKeys(
-    Filter filter, {
-    ETagReceiver? eTagReceiver,
-  }) async {
+  Future<List<String>> queryKeys(Filter filter) async {
     final response = await restApi.get(
       path: _buildPath(),
       filter: filter,
-      shallow: eTagReceiver != null,
-      eTag: eTagReceiver != null,
     );
-    _applyETag(eTagReceiver, response);
     return (response.data as Map<String, dynamic>?)?.keys.toList() ?? [];
   }
 
@@ -249,7 +238,6 @@ abstract class FirebaseStore<T> {
     final stream = await restApi.stream(
       path: _buildPath(),
       filter: filter,
-      shallow: true,
     );
     return stream.transform(const StoreKeyEventTransformer());
   }

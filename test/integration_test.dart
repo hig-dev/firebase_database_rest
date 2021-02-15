@@ -2,6 +2,7 @@ import 'package:firebase_auth_rest/firebase_auth_rest.dart';
 import 'package:firebase_database_rest/src/database/database.dart';
 import 'package:firebase_database_rest/src/database/etag_receiver.dart';
 import 'package:firebase_database_rest/src/database/store.dart';
+import 'package:firebase_database_rest/src/database/store_event.dart';
 import 'package:firebase_database_rest/src/database/transaction.dart';
 import 'package:firebase_database_rest/src/rest/api_constants.dart';
 import 'package:firebase_database_rest/src/rest/models/db_exception.dart';
@@ -11,6 +12,7 @@ import 'package:http/http.dart';
 import 'package:test/test.dart';
 import 'package:tuple/tuple.dart';
 
+import 'stream_matcher_queue.dart';
 import 'test_config.dart';
 import 'test_data.dart';
 
@@ -541,6 +543,81 @@ void main() {
 
       final readData = await store.read(key);
       expect(readData, updateData);
+    });
+  });
+
+  group('stream', () {
+    test('all', () async {
+      for (var i = 0; i < 3; ++i) {
+        await store.write('_$i', TestModel(id: i));
+      }
+
+      final stream = StreamMatcherQueue(await store.streamAll());
+      try {
+        await expectLater(
+          stream,
+          emitsQueued(const StoreEvent<TestModel>.reset({
+            '_0': TestModel(id: 0),
+            '_1': TestModel(id: 1),
+            '_2': TestModel(id: 2),
+          })),
+        );
+
+        await store.write('_3', const TestModel(id: 3));
+        await expectLater(
+          stream,
+          emitsQueued(const StoreEvent.put('_3', TestModel(id: 3))),
+        );
+
+        await store.write('_0', const TestModel(id: 1));
+        await store.write('_1', const TestModel(id: 0));
+        await expectLater(
+          stream,
+          emitsQueued(const [
+            StoreEvent.put('_0', TestModel(id: 1)),
+            StoreEvent.put('_1', TestModel(id: 0)),
+          ]),
+        );
+
+        final key = await store.create(const TestModel(id: 42));
+        await expectLater(
+          stream,
+          emitsQueued(StoreEvent<TestModel>.put(key, const TestModel(id: 42))),
+        );
+
+        await store.delete('_3');
+        await expectLater(
+          stream,
+          emitsQueued(const StoreEvent<TestModel>.delete('_3')),
+        );
+
+        await store.update('_0', const <String, dynamic>{'extra': true});
+        final patchEvent = await stream.next();
+        expect(patchEvent, isNotNull);
+        final patch = patchEvent!.maybeWhen(
+          patch: (key, value) => key == '_0' ? value : null,
+          orElse: () => null,
+        );
+        expect(patch, isNotNull);
+        final patched = patch!.apply(const TestModel(id: 1));
+        expect(patched, const TestModel(id: 1, extra: true));
+
+        final subStore = store.subStore<dynamic>(
+          path: '_0',
+          onDataFromJson: (dynamic json) => json,
+          onDataToJson: (dynamic data) => data,
+          onPatchData: (dynamic data, _) => data,
+        );
+        await subStore.write('sub', 42);
+        await expectLater(
+          stream,
+          emitsQueued(const StoreEvent<TestModel>.invalidPath('/_0/sub')),
+        );
+      } finally {
+        await stream.dispose();
+      }
+
+      expect(stream, isEmpty);
     });
   });
 }

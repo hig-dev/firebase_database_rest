@@ -14,7 +14,7 @@ abstract class StorePatchSet<T> with _$StorePatchSet<T> implements PatchSet<T> {
   const factory StorePatchSet({
     required FirebaseStore<T> store,
     required Map<String, dynamic> data,
-  }) = _StorePatchSet;
+  }) = _StorePatchSet<T>;
 
   @override
   // ignore: invalid_use_of_protected_member
