@@ -5,19 +5,16 @@ import 'package:meta/meta.dart';
 import '../../common/transformer_sink.dart';
 import '../../rest/models/stream_event.dart';
 import '../auth_revoked_exception.dart';
+import '../store.dart';
 import '../store_event.dart';
 import 'map_transform.dart';
-
-typedef DataFromJsonFn<T> = T? Function(dynamic json);
-
-typedef PatchSetFactory<T> = PatchSet<T> Function(Map<String, dynamic> data);
 
 @internal
 class StoreEventTransformerSink<T>
     extends TransformerSink<StreamEvent, StoreEvent<T>> with MapTransform<T> {
   static final subPathRegexp = RegExp(r'^\/([^\/]+)$');
 
-  final DataFromJsonFn<T> dataFromJson;
+  final DataFromJsonCallback<T> dataFromJson;
   final PatchSetFactory<T> patchSetFactory;
 
   StoreEventTransformerSink({
@@ -48,9 +45,8 @@ class StoreEventTransformerSink<T>
   void _update(String path, dynamic data) {
     final match = subPathRegexp.firstMatch(path);
     if (match != null) {
-      final parsedData = dataFromJson(data);
-      if (parsedData != null) {
-        outSink.add(StoreEvent.put(match[1]!, parsedData));
+      if (data != null) {
+        outSink.add(StoreEvent.put(match[1]!, dataFromJson(data)));
       } else {
         outSink.add(StoreEvent.delete(match[1]!));
       }
@@ -78,7 +74,7 @@ class StoreEventTransformerSink<T>
 
 class StoreEventTransformer<T>
     implements StreamTransformer<StreamEvent, StoreEvent<T>> {
-  final DataFromJsonFn<T> dataFromJson;
+  final DataFromJsonCallback<T> dataFromJson;
   final PatchSetFactory<T> patchSetFactory;
 
   const StoreEventTransformer({

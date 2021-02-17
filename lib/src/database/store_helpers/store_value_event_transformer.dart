@@ -6,16 +6,13 @@ import '../../common/transformer_sink.dart';
 import '../../rest/models/stream_event.dart';
 import '../auth_revoked_exception.dart';
 import '../patch_on_null_error.dart';
+import '../store.dart';
 import '../store_event.dart';
-
-typedef DataFromJsonFn<T> = T? Function(dynamic json);
-
-typedef PatchSetFactory<T> = PatchSet<T> Function(Map<String, dynamic> data);
 
 @internal
 class StoreValueEventTransformerSink<T>
     extends TransformerSink<StreamEvent, ValueEvent<T>> {
-  final DataFromJsonFn<T> dataFromJson;
+  final DataFromJsonCallback<T> dataFromJson;
   final PatchSetFactory<T> patchSetFactory;
 
   T? _currentValue;
@@ -35,10 +32,11 @@ class StoreValueEventTransformerSink<T>
 
   void _put(String path, dynamic data) {
     if (path == '/') {
-      _currentValue = dataFromJson(data);
-      if (_currentValue == null) {
+      if (data == null) {
+        _currentValue = null;
         outSink.add(const ValueEvent.delete());
       } else {
+        _currentValue = dataFromJson(data);
         outSink.add(ValueEvent.update(_currentValue!));
       }
     } else {
@@ -65,7 +63,7 @@ class StoreValueEventTransformerSink<T>
 
 class StoreValueEventTransformer<T>
     implements StreamTransformer<StreamEvent, ValueEvent<T>> {
-  final DataFromJsonFn<T> dataFromJson;
+  final DataFromJsonCallback<T> dataFromJson;
   final PatchSetFactory<T> patchSetFactory;
 
   const StoreValueEventTransformer({

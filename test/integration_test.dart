@@ -50,11 +50,11 @@ class TestStore extends FirebaseStore<TestModel> {
         );
 
   @override
-  TestModel? dataFromJson(dynamic json) =>
-      json != null ? TestModel.fromJson(json as Map<String, dynamic>) : null;
+  TestModel dataFromJson(dynamic json) =>
+      TestModel.fromJson(json as Map<String, dynamic>);
 
   @override
-  dynamic dataToJson(TestModel? data) => data?.toJson();
+  dynamic dataToJson(TestModel data) => data.toJson();
 
   @override
   TestModel patchData(TestModel data, Map<String, dynamic> updatedFields) =>
@@ -467,7 +467,7 @@ void main() {
       (fixture) async {
         final intStore = database.rootStore.subStore<int>(
           path: store.subPaths.last,
-          onDataFromJson: (dynamic j) => j as int?,
+          onDataFromJson: (dynamic j) => j as int,
           onDataToJson: (d) => d,
           onPatchData: (_, __) => throw UnimplementedError(),
         );

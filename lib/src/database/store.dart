@@ -19,14 +19,16 @@ import 'store_helpers/store_transaction.dart';
 import 'store_helpers/store_value_event_transformer.dart';
 import 'transaction.dart';
 
-typedef DataFromJsonCallback<T> = T? Function(dynamic json);
+typedef DataFromJsonCallback<T> = T Function(dynamic json);
 
-typedef DataToJsonCallback<T> = dynamic Function(T? data);
+typedef DataToJsonCallback<T> = dynamic Function(T data);
 
 typedef PatchDataCallback<T> = T Function(
   T data,
   Map<String, dynamic> updatedFields,
 );
+
+typedef PatchSetFactory<T> = PatchSet<T> Function(Map<String, dynamic> data);
 
 abstract class FirebaseStore<T> with MapTransform<T> {
   final RestApi restApi;
@@ -102,7 +104,7 @@ abstract class FirebaseStore<T> with MapTransform<T> {
       eTag: eTagReceiver != null,
     );
     _applyETag(eTagReceiver, response);
-    return dataFromJson(response.data);
+    return response.data != null ? dataFromJson(response.data!) : null;
   }
 
   Future<T?> write(
@@ -120,7 +122,9 @@ abstract class FirebaseStore<T> with MapTransform<T> {
       eTag: eTagReceiver != null,
     );
     _applyETag(eTagReceiver, response);
-    return silent ? null : dataFromJson(response.data);
+    return !silent && response.data != null
+        ? dataFromJson(response.data!)
+        : null;
   }
 
   Future<String> create(T data, {ETagReceiver? eTagReceiver}) async {
@@ -190,7 +194,7 @@ abstract class FirebaseStore<T> with MapTransform<T> {
     return StoreTransaction(
       store: this,
       key: key,
-      value: dataFromJson(response.data),
+      value: response.data != null ? dataFromJson(response.data!) : null,
       eTag: response.eTag!,
       eTagReceiver: eTagReceiver,
     );
@@ -257,10 +261,10 @@ abstract class FirebaseStore<T> with MapTransform<T> {
   }
 
   @protected
-  T? dataFromJson(dynamic json); // json can be null
+  T dataFromJson(dynamic json); // json cannot be null
 
   @protected
-  dynamic dataToJson(T? data); // return can be null
+  dynamic dataToJson(T data); // return cannot be null
 
   @protected
   T patchData(T data, Map<String, dynamic> updatedFields);

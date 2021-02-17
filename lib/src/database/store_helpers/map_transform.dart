@@ -1,22 +1,24 @@
 import 'package:meta/meta.dart';
 
+import '../store.dart';
+
 @internal
 mixin MapTransform<T> {
   @protected
   Map<String, T> mapTransform(
     dynamic data,
-    T? Function(dynamic) dataFromJson,
+    DataFromJsonCallback<T> dataFromJson,
   ) =>
       Map.fromEntries(
         (data as Map<String, dynamic>?)
                 ?.entries
+                .where((entry) => entry.value != null)
                 .map(
                   (entry) => MapEntry(
                     entry.key,
-                    dataFromJson(entry.value),
+                    dataFromJson(entry.value!),
                   ),
                 )
-                .where((entry) => entry.value != null)
                 .cast() ??
             const {},
       );

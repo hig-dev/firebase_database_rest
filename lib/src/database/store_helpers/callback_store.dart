@@ -32,10 +32,10 @@ class CallbackFirebaseStore<T> extends FirebaseStore<T> {
         );
 
   @override
-  T? dataFromJson(dynamic? json) => onDataFromJson(json);
+  T dataFromJson(dynamic json) => onDataFromJson(json);
 
   @override
-  dynamic? dataToJson(T? data) => onDataToJson(data);
+  dynamic dataToJson(T data) => onDataToJson(data);
 
   @override
   T patchData(T data, Map<String, dynamic> updatedFields) =>

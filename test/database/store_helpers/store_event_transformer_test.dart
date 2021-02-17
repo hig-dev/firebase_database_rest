@@ -53,9 +53,8 @@ void main() {
 
       sut = StoreEventTransformerSink<TestModel>(
         outSink: mockStoreEventSink,
-        dataFromJson: (dynamic json) => json != null
-            ? TestModel.fromJson(json as Map<String, dynamic>)
-            : null,
+        dataFromJson: (dynamic json) =>
+            TestModel.fromJson(json as Map<String, dynamic>),
         patchSetFactory: (data) => TestModelPatchSet(data),
       );
     });
@@ -167,9 +166,8 @@ void main() {
 
     setUp(() {
       sut = StoreEventTransformer<TestModel>(
-        dataFromJson: (dynamic json) => json != null
-            ? TestModel.fromJson(json as Map<String, dynamic>)
-            : null,
+        dataFromJson: (dynamic json) =>
+            TestModel.fromJson(json as Map<String, dynamic>),
         patchSetFactory: (data) => TestModelPatchSet(data),
       );
     });

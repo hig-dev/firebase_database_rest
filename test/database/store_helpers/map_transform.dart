@@ -4,7 +4,7 @@ import 'package:test/test.dart';
 class Sut with MapTransform<int> {
   Map<String, int> call(dynamic data) => mapTransform(
         data,
-        (dynamic x) => x != null ? (x as int) * 2 : null,
+        (dynamic x) => (x as int) * 2,
       );
 }
 
