@@ -11,6 +11,7 @@ import '../rest/rest_api.dart';
 import 'etag_receiver.dart';
 import 'store_event.dart';
 import 'store_helpers/callback_store.dart';
+import 'store_helpers/map_transform.dart';
 import 'store_helpers/store_event_transformer.dart';
 import 'store_helpers/store_key_event_transformer.dart';
 import 'store_helpers/store_patchset.dart';
@@ -27,7 +28,7 @@ typedef PatchDataCallback<T> = T Function(
   Map<String, dynamic> updatedFields,
 );
 
-abstract class FirebaseStore<T> {
+abstract class FirebaseStore<T> with MapTransform<T> {
   final RestApi restApi;
   final List<String> subPaths;
 
@@ -92,7 +93,7 @@ abstract class FirebaseStore<T> {
       eTag: eTagReceiver != null,
     );
     _applyETag(eTagReceiver, response);
-    return _mapTransform(response.data);
+    return mapTransform(response.data, dataFromJson);
   }
 
   Future<T?> read(String key, {ETagReceiver? eTagReceiver}) async {
@@ -167,7 +168,7 @@ abstract class FirebaseStore<T> {
       path: _buildPath(),
       filter: filter,
     );
-    return _mapTransform(response.data);
+    return mapTransform(response.data, dataFromJson);
   }
 
   Future<List<String>> queryKeys(Filter filter) async {
@@ -205,7 +206,7 @@ abstract class FirebaseStore<T> {
     ));
   }
 
-  Future<Stream<DataEvent<String>>> streamKeys() async {
+  Future<Stream<KeyEvent>> streamKeys() async {
     final stream = await restApi.stream(
       path: _buildPath(),
       shallow: true,
@@ -213,7 +214,7 @@ abstract class FirebaseStore<T> {
     return stream.transform(const StoreKeyEventTransformer());
   }
 
-  Future<Stream<DataEvent<T>>> streamEntry(String key) async {
+  Future<Stream<ValueEvent<T>>> streamEntry(String key) async {
     final stream = await restApi.stream(
       path: _buildPath(key),
     );
@@ -234,12 +235,25 @@ abstract class FirebaseStore<T> {
     ));
   }
 
-  Future<Stream<DataEvent<String>>> streamQueryKeys(Filter filter) async {
+  Future<Stream<KeyEvent>> streamQueryKeys(Filter filter) async {
     final stream = await restApi.stream(
       path: _buildPath(),
       filter: filter,
     );
     return stream.transform(const StoreKeyEventTransformer());
+  }
+
+  Future<void> destroy({
+    String? eTag,
+    ETagReceiver? eTagReceiver,
+  }) async {
+    final response = await restApi.delete(
+      path: _buildPath(),
+      printMode: eTag == null ? PrintMode.silent : null,
+      ifMatch: eTag,
+      eTag: eTagReceiver != null,
+    );
+    _applyETag(eTagReceiver, response);
   }
 
   @protected
@@ -263,20 +277,4 @@ abstract class FirebaseStore<T> {
       eTagReceiver.eTag = response.eTag;
     }
   }
-
-  // TODO refactor to helper class
-  Map<String, T> _mapTransform(dynamic data) => Map.fromEntries(
-        (data as Map<String, dynamic>? ?? <String, dynamic>{})
-            .entries
-            .map(
-              (entry) => MapEntry(
-                entry.key,
-                dataFromJson(entry.value),
-              ),
-            )
-            .where((entry) => entry.value != null)
-            .cast(),
-      );
-
-  // TODO add destroy
 }

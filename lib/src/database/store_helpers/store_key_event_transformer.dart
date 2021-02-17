@@ -9,33 +9,37 @@ import '../store_event.dart';
 
 @internal
 class StoreKeyEventTransformerSink
-    extends TransformerSink<StreamEvent, DataEvent<String>> {
+    extends TransformerSink<StreamEvent, KeyEvent> {
   static final subPathRegexp = RegExp(r'^\/([^\/]+)$');
 
-  StoreKeyEventTransformerSink(EventSink<DataEvent<String>> outSink)
-      : super(outSink);
+  StoreKeyEventTransformerSink(EventSink<KeyEvent> outSink) : super(outSink);
 
   @override
   void add(StreamEvent event) => event.when(
-        put: (path, dynamic _) => _put(path),
-        patch: (path, dynamic _) => _value(path),
+        put: _put,
+        patch: _value,
         authRevoked: _authRevoked,
       );
 
-  void _put(String path) {
+  void _put(String path, dynamic data) {
     if (path == '/') {
-      outSink.add(const DataEvent.clear());
+      final map = data as Map<String, dynamic>?;
+      outSink.add(KeyEvent.reset(map?.keys.toList() ?? const []));
     } else {
-      _value(path);
+      _value(path, data);
     }
   }
 
-  void _value(String path) {
+  void _value(String path, dynamic data) {
     final match = subPathRegexp.firstMatch(path);
     if (match != null) {
-      outSink.add(DataEvent.value(match[1]!));
+      if (data == null) {
+        outSink.add(KeyEvent.delete(match[1]!));
+      } else {
+        outSink.add(KeyEvent.update(match[1]!));
+      }
     } else {
-      outSink.add(DataEvent.invalidPath(path));
+      outSink.add(KeyEvent.invalidPath(path));
     }
   }
 
@@ -43,17 +47,16 @@ class StoreKeyEventTransformerSink
 }
 
 class StoreKeyEventTransformer
-    implements StreamTransformer<StreamEvent, DataEvent<String>> {
+    implements StreamTransformer<StreamEvent, KeyEvent> {
   const StoreKeyEventTransformer();
 
   @override
-  Stream<DataEvent<String>> bind(Stream<StreamEvent> stream) =>
-      Stream.eventTransformed(
+  Stream<KeyEvent> bind(Stream<StreamEvent> stream) => Stream.eventTransformed(
         stream,
         (sink) => StoreKeyEventTransformerSink(sink),
       );
 
   @override
   StreamTransformer<RS, RT> cast<RS, RT>() =>
-      StreamTransformer.castFrom<StreamEvent, DataEvent<String>, RS, RT>(this);
+      StreamTransformer.castFrom<StreamEvent, KeyEvent, RS, RT>(this);
 }

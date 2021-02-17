@@ -1,3 +1,5 @@
+import 'dart:developer';
+
 import 'package:firebase_auth_rest/firebase_auth_rest.dart';
 import 'package:firebase_database_rest/src/database/database.dart';
 import 'package:firebase_database_rest/src/database/etag_receiver.dart';
@@ -77,9 +79,37 @@ void main() {
   });
 
   tearDownAll(() async {
-    await account.delete();
+    var error = false;
+    try {
+      await database.rootStore.destroy();
+    } catch (e, s) {
+      error = true;
+      log(
+        'Root store destruction failed',
+        error: e,
+        stackTrace: s,
+        level: 1000,
+      );
+    }
+
+    try {
+      await account.delete();
+    } catch (e, s) {
+      error = true;
+      log(
+        'Account deletion failed',
+        error: e,
+        stackTrace: s,
+        level: 1000,
+      );
+    }
+
     await database.dispose();
     client.close();
+
+    if (error) {
+      fail('tearDownAll failed');
+    }
   });
 
   var caseCtr = 0;
@@ -87,10 +117,6 @@ void main() {
 
   setUp(() {
     store = TestStore(database.rootStore, caseCtr++);
-  });
-
-  tearDown(() async {
-    await database.rootStore.delete(store.subPaths.last);
   });
 
   test('setUp and tearDown run without errors', () async {
@@ -167,7 +193,7 @@ void main() {
     expect(updateRemote2, updateLocal2);
   });
 
-  test('all and keys report all data', () async {
+  test('all and keys report all data, destroy deletes all', () async {
     expect(TestConfig.allTestLimit, greaterThanOrEqualTo(5));
 
     for (var i = 0; i < TestConfig.allTestLimit; ++i) {
@@ -206,6 +232,11 @@ void main() {
           if (i != 3) '_$i': TestModel(id: i),
       },
     );
+
+    await store.destroy();
+
+    expect(await store.keys(), isEmpty);
+    expect(await store.all(), isEmpty);
   });
 
   test('reports and respects eTags', () async {
@@ -305,6 +336,22 @@ void main() {
     expect(writeTag2, isNot(deleteTag));
     expect(writeTag2, isNot(writeTag));
     expect(writeTag2, isNot(createTag));
+
+    await expectLater(
+      () => store.destroy(eTag: keysTag3),
+      throwsA(const DbException(
+        statusCode: ApiConstants.statusCodeETagMismatch,
+      )),
+    );
+
+    await store.keys(eTagReceiver: receiver);
+    final keysTag4 = _getTag();
+    expect(keysTag4, isNot(ApiConstants.nullETag));
+    expect(keysTag4, isNot(keysTag3));
+
+    await store.destroy(eTag: keysTag4, eTagReceiver: receiver);
+    final destroyTag = _getTag();
+    expect(destroyTag, ApiConstants.nullETag);
   });
 
   group('query', () {
@@ -570,19 +617,19 @@ void main() {
         );
 
         await store.write('_0', const TestModel(id: 1));
-        await store.write('_1', const TestModel(id: 0));
+        await store.write('_0', const TestModel(id: 0));
         await expectLater(
           stream,
           emitsQueued(const [
             StoreEvent.put('_0', TestModel(id: 1)),
-            StoreEvent.put('_1', TestModel(id: 0)),
+            StoreEvent.put('_0', TestModel(id: 0)),
           ]),
         );
 
         final key = await store.create(const TestModel(id: 42));
         await expectLater(
           stream,
-          emitsQueued(StoreEvent<TestModel>.put(key, const TestModel(id: 42))),
+          emitsQueued(StoreEvent.put(key, const TestModel(id: 42))),
         );
 
         await store.delete('_3');
@@ -614,12 +661,238 @@ void main() {
           emitsQueued(const StoreEvent<TestModel>.invalidPath('/_0/sub')),
         );
       } finally {
-        await stream.dispose();
+        await stream.close();
+      }
+
+      expect(stream, isEmpty);
+    });
+
+    test('keys', () async {
+      for (var i = 0; i < 3; ++i) {
+        await store.write('_$i', TestModel(id: i));
+      }
+
+      final stream = StreamMatcherQueue(await store.streamKeys());
+      try {
+        await expectLater(
+          stream,
+          emitsQueued(const KeyEvent.reset(['_0', '_1', '_2'])),
+        );
+
+        await store.write('_3', const TestModel(id: 3));
+        await expectLater(
+          stream,
+          emitsQueued(const KeyEvent.update('_3')),
+        );
+
+        await store.write('_0', const TestModel(id: 1));
+        await store.write('_0', const TestModel(id: 0));
+        await expectLater(
+          stream,
+          emitsQueued(const [
+            KeyEvent.update('_0'),
+            KeyEvent.update('_0'),
+          ]),
+        );
+
+        final key = await store.create(const TestModel(id: 42));
+        await expectLater(
+          stream,
+          emitsQueued(KeyEvent.update(key)),
+        );
+
+        await store.delete('_3');
+        await expectLater(
+          stream,
+          emitsQueued(const KeyEvent.delete('_3')),
+        );
+
+        await store.update('_0', const <String, dynamic>{'extra': true});
+        await expectLater(
+          stream,
+          emitsQueued(const KeyEvent.update('_0')),
+        );
+
+        final subStore = store.subStore<dynamic>(
+          path: '_0',
+          onDataFromJson: (dynamic json) => json,
+          onDataToJson: (dynamic data) => data,
+          onPatchData: (dynamic data, _) => data,
+        );
+        await subStore.write('sub', 42);
+        await expectLater(
+          stream,
+          emitsQueued(const KeyEvent.invalidPath('/_0/sub')),
+        );
+      } finally {
+        await stream.close();
+      }
+
+      expect(stream, isEmpty);
+    });
+
+    test('entry', () async {
+      final key = await store.create(const TestModel(id: 42));
+
+      final stream = StreamMatcherQueue(await store.streamEntry(key));
+      try {
+        await expectLater(
+          stream,
+          emitsQueued(const ValueEvent.update(TestModel(id: 42))),
+        );
+
+        await store.write(key, const TestModel(id: 3));
+        await expectLater(
+          stream,
+          emitsQueued(const ValueEvent.update(TestModel(id: 3))),
+        );
+
+        await store.write(key, const TestModel(id: 4));
+        await store.write(key, const TestModel(id: 5));
+        await expectLater(
+          stream,
+          emitsQueued(const [
+            ValueEvent.update(TestModel(id: 4)),
+            ValueEvent.update(TestModel(id: 5)),
+          ]),
+        );
+
+        await store.create(const TestModel(id: 42));
+        expect(stream, isEmpty);
+
+        await store.update(key, const <String, dynamic>{'extra': true});
+        await expectLater(
+          stream,
+          emitsQueued(const ValueEvent.update(TestModel(id: 5, extra: true))),
+        );
+
+        await store.delete(key);
+        await expectLater(
+          stream,
+          emitsQueued(const ValueEvent<TestModel>.delete()),
+        );
+
+        final subStore = store.subStore<dynamic>(
+          path: key,
+          onDataFromJson: (dynamic json) => json,
+          onDataToJson: (dynamic data) => data,
+          onPatchData: (dynamic data, _) => data,
+        );
+        await subStore.write('sub', 42);
+        await expectLater(
+          stream,
+          emitsQueued(const ValueEvent<TestModel>.invalidPath('/sub')),
+        );
+      } finally {
+        await stream.close();
+      }
+
+      expect(stream, isEmpty);
+    });
+
+    test('query', () async {
+      for (var i = 4; i < 8; ++i) {
+        await store.write('_$i', TestModel(id: i));
+      }
+
+      final stream = StreamMatcherQueue(await store.streamQuery(
+        Filter.key().startAt('_6').limitToFirst(4).build(),
+      ));
+      try {
+        await expectLater(
+          stream,
+          emitsQueued(const StoreEvent<TestModel>.reset({
+            '_6': TestModel(id: 6),
+            '_7': TestModel(id: 7),
+          })),
+        );
+
+        for (var i = 12; i > 2; --i) {
+          await store.write('_$i', TestModel(id: i * i));
+        }
+        await store.write('_8', const TestModel(id: 888));
+
+        await expectLater(
+          stream,
+          emitsQueued(const [
+            StoreEvent<TestModel>.put('_9', TestModel(id: 9 * 9)),
+            StoreEvent<TestModel>.put('_8', TestModel(id: 8 * 8)),
+            StoreEvent<TestModel>.put('_7', TestModel(id: 7 * 7)),
+            StoreEvent<TestModel>.put('_6', TestModel(id: 6 * 6)),
+            StoreEvent<TestModel>.put('_8', TestModel(id: 888)),
+          ]),
+        );
+
+        await store.update('_7', <String, dynamic>{'extra': true});
+        final event = await stream.next();
+        expect(
+          event!.maybeWhen(
+            patch: (_, __) => true,
+            orElse: () => false,
+          ),
+          true,
+        );
+
+        await store.delete('_10');
+        await store.delete('_9');
+        await expectLater(
+          stream,
+          emitsQueued(const StoreEvent<TestModel>.delete('_9')),
+        );
+      } finally {
+        await stream.close();
+      }
+
+      expect(stream, isEmpty);
+    });
+
+    test('queryKeys', () async {
+      for (var i = 4; i < 8; ++i) {
+        await store.write('_$i', TestModel(id: i));
+      }
+
+      final stream = StreamMatcherQueue(await store.streamQueryKeys(
+        Filter.key().startAt('_6').limitToFirst(4).build(),
+      ));
+      try {
+        await expectLater(
+          stream,
+          emitsQueued(const KeyEvent.reset(['_6', '_7'])),
+        );
+
+        for (var i = 12; i > 2; --i) {
+          await store.write('_$i', TestModel(id: i * i));
+        }
+        await store.write('_8', const TestModel(id: 888));
+
+        await expectLater(
+          stream,
+          emitsQueued(const [
+            KeyEvent.update('_9'),
+            KeyEvent.update('_8'),
+            KeyEvent.update('_7'),
+            KeyEvent.update('_6'),
+            KeyEvent.update('_8'),
+          ]),
+        );
+
+        await store.update('_7', <String, dynamic>{'extra': true});
+        await expectLater(
+          stream,
+          emitsQueued(const KeyEvent.update('_7')),
+        );
+
+        await store.delete('_10');
+        await store.delete('_9');
+        await expectLater(
+          stream,
+          emitsQueued(const KeyEvent.delete('_9')),
+        );
+      } finally {
+        await stream.close();
       }
 
       expect(stream, isEmpty);
     });
   });
 }
-
-// TODO write fuzzy test?

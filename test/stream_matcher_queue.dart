@@ -61,13 +61,17 @@ class StreamMatcherQueue<T> {
 
   bool get isNotEmpty => _events.isNotEmpty;
 
+  Iterable<_MatchData<T>> get events => _events;
+
   Future<T?> next({bool pop = true}) async {
     while (isEmpty) {
       await Future<void>.delayed(const Duration(milliseconds: 10));
     }
-    _lastMatch = pop ? _events.removeLast() : _events.last;
+    _lastMatch = pop ? _events.removeFirst() : _events.first;
     return _lastMatch!.value;
   }
+
+  void dropDescribe() => _lastMatch = null;
 
   void _onData(T data) => _events.add(_MatchData.data(data));
 
@@ -75,10 +79,10 @@ class StreamMatcherQueue<T> {
 
   void _onDone() => _events.add(_MatchData.done());
 
-  Future<void> dispose() => _sub.cancel();
+  Future<void> close() => _sub.cancel();
 
   @override
-  String toString() => _lastMatch?.toString() ?? '<unknown>';
+  String toString() => _lastMatch?.toString() ?? _events.toString();
 }
 
 class _QueueMatcher extends AsyncMatcher {
@@ -99,8 +103,9 @@ class _QueueMatcher extends AsyncMatcher {
 
       final dynamic event = await item.next();
       if (!_lastMatcher!.matches(event, <dynamic, dynamic>{})) {
-        return 'did not match';
+        return 'did not match. Remaining queue: ${item.events}';
       }
+      item.dropDescribe();
     }
     return null;
   }

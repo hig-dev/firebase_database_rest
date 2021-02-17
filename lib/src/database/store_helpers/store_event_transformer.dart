@@ -6,6 +6,7 @@ import '../../common/transformer_sink.dart';
 import '../../rest/models/stream_event.dart';
 import '../auth_revoked_exception.dart';
 import '../store_event.dart';
+import 'map_transform.dart';
 
 typedef DataFromJsonFn<T> = T? Function(dynamic json);
 
@@ -13,7 +14,7 @@ typedef PatchSetFactory<T> = PatchSet<T> Function(Map<String, dynamic> data);
 
 @internal
 class StoreEventTransformerSink<T>
-    extends TransformerSink<StreamEvent, StoreEvent<T>> {
+    extends TransformerSink<StreamEvent, StoreEvent<T>> with MapTransform<T> {
   static final subPathRegexp = RegExp(r'^\/([^\/]+)$');
 
   final DataFromJsonFn<T> dataFromJson;
@@ -34,28 +35,14 @@ class StoreEventTransformerSink<T>
 
   void _put(String path, dynamic data) {
     if (path == '/') {
-      _reset(data as Map<String, dynamic>?);
+      _reset(data);
     } else {
       _update(path, data);
     }
   }
 
-  void _reset(Map<String, dynamic>? data) => outSink.add(
-        StoreEvent.reset(
-          // TODO refactor to helper class
-          Map.fromEntries(
-            (data ?? <String, dynamic>{})
-                .entries
-                .map(
-                  (entry) => MapEntry(
-                    entry.key,
-                    dataFromJson(entry.value),
-                  ),
-                )
-                .where((entry) => entry.value != null)
-                .cast(),
-          ),
-        ),
+  void _reset(dynamic data) => outSink.add(
+        StoreEvent.reset(mapTransform(data, dataFromJson)),
       );
 
   void _update(String path, dynamic data) {

@@ -20,8 +20,16 @@ abstract class StoreEvent<T> with _$StoreEvent<T> {
 }
 
 @freezed
-abstract class DataEvent<T> with _$DataEvent<T> {
-  const factory DataEvent.clear() = _DataClear<T>;
-  const factory DataEvent.value(T data) = _DataValue<T>;
-  const factory DataEvent.invalidPath(String path) = _DataInvalidPath<T>;
+abstract class KeyEvent with _$KeyEvent {
+  const factory KeyEvent.reset(List<String> keys) = _KeyReset;
+  const factory KeyEvent.update(String key) = _KeyUpdate;
+  const factory KeyEvent.delete(String key) = _KeyDelete;
+  const factory KeyEvent.invalidPath(String path) = _KeyInvalidPath;
+}
+
+@freezed
+abstract class ValueEvent<T> with _$ValueEvent<T> {
+  const factory ValueEvent.update(T data) = _ValueUpdate<T>;
+  const factory ValueEvent.delete() = _ValueDelete<T>;
+  const factory ValueEvent.invalidPath(String path) = _ValueInvalidPath<T>;
 }

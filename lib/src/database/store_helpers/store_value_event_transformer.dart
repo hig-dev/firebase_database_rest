@@ -14,14 +14,14 @@ typedef PatchSetFactory<T> = PatchSet<T> Function(Map<String, dynamic> data);
 
 @internal
 class StoreValueEventTransformerSink<T>
-    extends TransformerSink<StreamEvent, DataEvent<T>> {
+    extends TransformerSink<StreamEvent, ValueEvent<T>> {
   final DataFromJsonFn<T> dataFromJson;
   final PatchSetFactory<T> patchSetFactory;
 
   T? _currentValue;
 
   StoreValueEventTransformerSink({
-    required EventSink<DataEvent<T>> outSink,
+    required EventSink<ValueEvent<T>> outSink,
     required this.dataFromJson,
     required this.patchSetFactory,
   }) : super(outSink);
@@ -36,9 +36,13 @@ class StoreValueEventTransformerSink<T>
   void _put(String path, dynamic data) {
     if (path == '/') {
       _currentValue = dataFromJson(data);
-      outSink.add(DataEvent.value(_currentValue!));
+      if (_currentValue == null) {
+        outSink.add(const ValueEvent.delete());
+      } else {
+        outSink.add(ValueEvent.update(_currentValue!));
+      }
     } else {
-      outSink.add(DataEvent.invalidPath(path));
+      outSink.add(ValueEvent.invalidPath(path));
     }
   }
 
@@ -50,9 +54,9 @@ class StoreValueEventTransformerSink<T>
       }
       final patch = patchSetFactory(data as Map<String, dynamic>);
       _currentValue = patch.apply(_currentValue!);
-      outSink.add(DataEvent.value(_currentValue!));
+      outSink.add(ValueEvent.update(_currentValue!));
     } else {
-      outSink.add(DataEvent.invalidPath(path));
+      outSink.add(ValueEvent.invalidPath(path));
     }
   }
 
@@ -60,7 +64,7 @@ class StoreValueEventTransformerSink<T>
 }
 
 class StoreValueEventTransformer<T>
-    implements StreamTransformer<StreamEvent, DataEvent<T>> {
+    implements StreamTransformer<StreamEvent, ValueEvent<T>> {
   final DataFromJsonFn<T> dataFromJson;
   final PatchSetFactory<T> patchSetFactory;
 
@@ -70,7 +74,7 @@ class StoreValueEventTransformer<T>
   });
 
   @override
-  Stream<DataEvent<T>> bind(Stream<StreamEvent> stream) =>
+  Stream<ValueEvent<T>> bind(Stream<StreamEvent> stream) =>
       Stream.eventTransformed(
         stream,
         (sink) => StoreValueEventTransformerSink<T>(
@@ -82,5 +86,5 @@ class StoreValueEventTransformer<T>
 
   @override
   StreamTransformer<RS, RT> cast<RS, RT>() =>
-      StreamTransformer.castFrom<StreamEvent, DataEvent<T>, RS, RT>(this);
+      StreamTransformer.castFrom<StreamEvent, ValueEvent<T>, RS, RT>(this);
 }

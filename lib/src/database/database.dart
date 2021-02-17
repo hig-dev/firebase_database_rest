@@ -86,6 +86,4 @@ class FirebaseDatabase {
         onDataToJson: onDataToJson,
         onPatchData: onPatchData,
       );
-
-  // TODO add full delete
 }
