@@ -7,7 +7,7 @@ import 'package:mockito/mockito.dart';
 import 'package:test/test.dart';
 import 'package:tuple/tuple.dart';
 
-import '../test_data.dart';
+import '../../test_data.dart';
 import 'event_stream_decoder_test.mocks.dart';
 
 abstract class SSESink extends EventSink<ServerSentEvent> {}

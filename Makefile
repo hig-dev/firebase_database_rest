@@ -39,17 +39,24 @@ analyze: .packages
 	dart analyze --fatal-infos
 
 # test
-test: get
+unit-tests: get
+	dart --no-sound-null-safety --null-assertions test test/unit
+
+integration-tests: get
 	@test -n "$(FIREBASE_PROJECT_ID)"
 	@test -n "$(FIREBASE_API_KEY)"
-	dart --no-sound-null-safety --null-assertions test
+	dart --no-sound-null-safety --null-assertions test test/integration
+
+test: get
+	$(MAKE) unit-tests
+	$(MAKE) integration-tests
 
 # coverage
 coverage/.generated: .packages $(wildcard test/*.dart) $(wildcard src/*.dart) $(wildcard bin/*.dart)
 	@test -n "$(FIREBASE_PROJECT_ID)"
 	@test -n "$(FIREBASE_API_KEY)"
 	@rm -rf coverage
-	dart --no-sound-null-safety --null-assertions test --coverage=coverage
+	dart --no-sound-null-safety --null-assertions test --coverage=coverage test/unit
 	touch coverage/.generated
 
 coverage/lcov.info: coverage/.generated
@@ -70,7 +77,7 @@ coverage/html/index.html: coverage/lcov_cleaned.info
 
 coverage: coverage/html/index.html
 
-test-coverage: coverage/lcov.info
+unit-test-coverage: coverage/lcov.info
 
 coverage-open: coverage/html/index.html
 	xdg-open coverage/html/index.html || start coverage/html/index.html
@@ -108,6 +115,8 @@ publish: .packages
 verify:
 	$(MAKE) build-clean
 	$(MAKE) analyze
+	$(MAKE) unit-test-coverage
+	$(MAKE) integration-tests
 	$(MAKE) coverage-open
 	$(MAKE) doc-open
 	$(MAKE) publish-dry

@@ -14,9 +14,9 @@ import 'package:http/http.dart';
 import 'package:test/test.dart';
 import 'package:tuple/tuple.dart';
 
+import '../test_data.dart';
 import 'stream_matcher_queue.dart';
 import 'test_config.dart';
-import 'test_data.dart';
 
 part 'integration_test.freezed.dart';
 part 'integration_test.g.dart';

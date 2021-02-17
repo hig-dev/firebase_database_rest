@@ -3,10 +3,14 @@ import 'package:firebase_database_rest/src/database/auto_renew_stream.dart';
 import 'package:mockito/mockito.dart';
 import 'package:test/test.dart';
 
-import '../mock_callable.dart';
+abstract class Callable {
+  Future<Stream<int>> call();
+}
+
+class MockCallable extends Mock implements Callable {}
 
 void main() {
-  final mockStreamFactory = MockCallable0<Future<Stream<int>>>();
+  final mockStreamFactory = MockCallable();
 
   late int _authStreamCtr;
   Stream<int> _authStream(int limit) async* {

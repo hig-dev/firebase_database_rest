@@ -2,7 +2,7 @@ import 'package:firebase_database_rest/src/rest/api_constants.dart';
 import 'package:test/test.dart';
 import 'package:tuple/tuple.dart';
 
-import '../test_data.dart';
+import '../../test_data.dart';
 
 void main() {
   testData<Tuple2<PrintMode, String>>(

@@ -27,7 +27,8 @@ jobs:
       - run: make get
       - run: make build
       - run: make analyze
-      - run: make test-coverage
+      - run: make unit-test-coverage
+      - run: make integration-tests
         env:
           FIREBASE_ALL_TEST_LIMIT: 500
           FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}

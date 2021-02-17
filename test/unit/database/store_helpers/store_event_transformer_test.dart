@@ -10,7 +10,7 @@ import 'package:mockito/mockito.dart';
 import 'package:test/test.dart';
 import 'package:tuple/tuple.dart';
 
-import '../../test_data.dart';
+import '../../../test_data.dart';
 import 'store_event_transformer_test.mocks.dart';
 
 part 'store_event_transformer_test.freezed.dart';
