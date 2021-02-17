@@ -53,8 +53,6 @@ test: get
 
 # coverage
 coverage/.generated: .packages $(wildcard test/*.dart) $(wildcard src/*.dart) $(wildcard bin/*.dart)
-	@test -n "$(FIREBASE_PROJECT_ID)"
-	@test -n "$(FIREBASE_API_KEY)"
 	@rm -rf coverage
 	dart --no-sound-null-safety --null-assertions test --coverage=coverage test/unit
 	touch coverage/.generated
