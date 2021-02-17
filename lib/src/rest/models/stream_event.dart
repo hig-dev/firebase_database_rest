@@ -1,3 +1,4 @@
+// coverage:ignore-file
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 part 'stream_event.freezed.dart';

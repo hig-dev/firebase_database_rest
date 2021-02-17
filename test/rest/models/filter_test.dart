@@ -7,7 +7,7 @@ void main() {
       final filters = Filter.property<int>('name').build();
 
       expect(filters.filters, const {
-        'orderBy': 'name',
+        'orderBy': '"name"',
       });
     });
 
@@ -15,7 +15,7 @@ void main() {
       final filters = Filter.key().build();
 
       expect(filters.filters, const {
-        'orderBy': r'$key',
+        'orderBy': r'"$key"',
       });
     });
 
@@ -23,7 +23,7 @@ void main() {
       final filters = Filter.value<bool>().build();
 
       expect(filters.filters, const {
-        'orderBy': r'$value',
+        'orderBy': r'"$value"',
       });
     });
   });
@@ -33,7 +33,7 @@ void main() {
       final filters = Filter.key().limitToFirst(10).build();
 
       expect(filters.filters, const {
-        'orderBy': r'$key',
+        'orderBy': r'"$key"',
         'limitToFirst': '10',
       });
     });
@@ -42,7 +42,7 @@ void main() {
       final filters = Filter.key().limitToLast(10).build();
 
       expect(filters.filters, const {
-        'orderBy': r'$key',
+        'orderBy': r'"$key"',
         'limitToLast': '10',
       });
     });
@@ -51,8 +51,8 @@ void main() {
       final filters = Filter.key().startAt('A').build();
 
       expect(filters.filters, const {
-        'orderBy': r'$key',
-        'startAt': 'A',
+        'orderBy': r'"$key"',
+        'startAt': '"A"',
       });
     });
 
@@ -60,8 +60,8 @@ void main() {
       final filters = Filter.key().endAt('A').build();
 
       expect(filters.filters, const {
-        'orderBy': r'$key',
-        'endAt': 'A',
+        'orderBy': r'"$key"',
+        'endAt': '"A"',
       });
     });
 
@@ -69,8 +69,8 @@ void main() {
       final filters = Filter.key().equalTo('A').build();
 
       expect(filters.filters, const {
-        'orderBy': r'$key',
-        'equalTo': 'A',
+        'orderBy': r'"$key"',
+        'equalTo': '"A"',
       });
     });
   });

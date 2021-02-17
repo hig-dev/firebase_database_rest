@@ -79,7 +79,7 @@ void main() {
         expect(result, isEmpty);
         verify(mockRestApi.get(
           path: path,
-          shallow: true,
+          shallow: false,
           eTag: true,
         ));
       });

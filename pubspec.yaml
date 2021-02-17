@@ -16,7 +16,7 @@ dependencies:
   path: ^1.8.0
 
 dev_dependencies:
-  build_runner: ^1.11.1 # X
+  build_runner: ^1.11.2 # X
   coverage: ^0.15.2 # X
   dart_pre_commit: ^2.2.0-nullsafety.1
   freezed: ^0.13.0-nullsafety.2

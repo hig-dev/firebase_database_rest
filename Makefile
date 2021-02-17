@@ -66,7 +66,7 @@ coverage/lcov_cleaned.info: coverage/lcov.info
 		'**/models/*.dart'
 
 coverage/html/index.html: coverage/lcov_cleaned.info
-	genhtml -o coverage/html coverage/lcov_cleaned.info
+	genhtml --no-function-coverage -o coverage/html coverage/lcov_cleaned.info
 
 coverage: coverage/html/index.html
 

@@ -1,3 +1,4 @@
+// coverage:ignore-file
 import '../../stream/server_sent_event.dart';
 
 class UnknownStreamEventError extends Error {
