@@ -23,11 +23,19 @@ class StoreKeyEventTransformerSink
 
   void _put(String path, dynamic data) {
     if (path == '/') {
-      final map = data as Map<String, dynamic>?;
-      outSink.add(KeyEvent.reset(map?.keys.toList() ?? const []));
+      _reset(data);
     } else {
       _value(path, data);
     }
+  }
+
+  void _reset(dynamic data) {
+    final map = data as Map<String, dynamic>?;
+    final keys = map?.entries
+        .where((entry) => entry.value != null)
+        .map((entry) => entry.key)
+        .toList();
+    outSink.add(KeyEvent.reset(keys ?? const []));
   }
 
   void _value(String path, dynamic data) {
