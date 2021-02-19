@@ -63,6 +63,8 @@ class StreamMatcherQueue<T> {
 
   Iterable<_MatchData<T>> get events => _events;
 
+  StreamSubscription<T> get sub => _sub;
+
   Future<T?> next({bool pop = true}) async {
     while (isEmpty) {
       await Future<void>.delayed(const Duration(milliseconds: 10));
@@ -99,13 +101,20 @@ class _QueueMatcher extends AsyncMatcher {
   @override
   FutureOr<String?> matchAsync(covariant StreamMatcherQueue item) async {
     for (final matcher in matchers) {
-      _lastMatcher = matcher is Matcher ? matcher : equals(matcher);
-
-      final dynamic event = await item.next();
-      if (!_lastMatcher!.matches(event, <dynamic, dynamic>{})) {
-        return 'did not match. Remaining queue: ${item.events}';
+      if (matcher is _ErrorMatcher) {
+        _lastMatcher = throwsA(matcher.matcher);
+        if (!_lastMatcher!.matches(() => item.next(), <dynamic, dynamic>{})) {
+          return 'did not match. Remaining queue: ${item.events}';
+        }
+        item.dropDescribe();
+      } else {
+        _lastMatcher = matcher is Matcher ? matcher : equals(matcher);
+        final dynamic event = await item.next();
+        if (!_lastMatcher!.matches(event, <dynamic, dynamic>{})) {
+          return 'did not match. Remaining queue: ${item.events}';
+        }
+        item.dropDescribe();
       }
-      item.dropDescribe();
     }
     return null;
   }
@@ -113,3 +122,11 @@ class _QueueMatcher extends AsyncMatcher {
 
 Matcher emitsQueued(dynamic matchers) =>
     _QueueMatcher(matchers is List ? matchers : <dynamic>[matchers]);
+
+class _ErrorMatcher {
+  final dynamic matcher;
+
+  const _ErrorMatcher(this.matcher);
+}
+
+dynamic asError(dynamic matcher) => _ErrorMatcher(matcher);

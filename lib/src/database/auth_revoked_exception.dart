@@ -1,3 +1,4 @@
+// coverage:ignore-file
 class AuthRevokedException implements Exception {
   @override
   String toString() =>
