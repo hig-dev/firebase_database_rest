@@ -144,31 +144,34 @@ void main() {
     verify(mockStreamFactory.call()).called(3);
   });
 
-  test('can cancel while refreshing', () async {
-    when(mockStreamFactory.call()).thenAnswer(
-      (i) async => Stream.fromFuture(
-        Future.delayed(const Duration(milliseconds: 250), () => 42),
-      ),
-    );
+  test(
+    'can cancel while refreshing',
+    () async {
+      when(mockStreamFactory.call()).thenAnswer(
+        (i) async => Stream.fromFuture(
+          Future.delayed(const Duration(milliseconds: 250), () => 42),
+        ),
+      );
 
-    final stream = StreamMatcherQueue(AutoRenewStream.fromStream(
-      _singleAuthStream(const [1, 2, 3]),
-      mockStreamFactory,
-    ));
-    try {
-      await expectLater(stream, emitsQueued(const [1, 2, 3]));
-      await Future<void>.delayed(const Duration(milliseconds: 100));
-      await stream.sub.cancel();
-      await expectLater(stream, emitsQueued(null));
-      expect(stream, isEmpty);
+      final stream = StreamMatcherQueue(AutoRenewStream.fromStream(
+        _singleAuthStream(const [1, 2, 3]),
+        mockStreamFactory,
+      ));
+      try {
+        await expectLater(stream, emitsQueued(const [1, 2, 3]));
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+        await stream.sub.cancel();
+        expect(stream, isEmpty);
 
-      await Future<void>.delayed(const Duration(milliseconds: 300));
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+        expect(stream, isEmpty);
+      } finally {
+        await stream.close();
+      }
       expect(stream, isEmpty);
-    } finally {
-      await stream.close();
-    }
-    expect(stream, isEmpty);
-  });
+    },
+    timeout: const Timeout(Duration(seconds: 3)),
+  );
 
   test('can pause while refreshing', () async {
     when(mockStreamFactory.call()).thenAnswer(
