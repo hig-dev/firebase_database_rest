@@ -1,3 +1,4 @@
+// coverage:ignore-file
 class PatchOnNullError extends Error {
   final String? key;
 

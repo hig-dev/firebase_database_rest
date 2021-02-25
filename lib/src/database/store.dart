@@ -114,10 +114,14 @@ abstract class FirebaseStore<T> with MapTransform<T> {
     String? eTag,
     ETagReceiver? eTagReceiver,
   }) async {
+    assert(
+      !silent || eTag == null,
+      'Cannot set silent and eTag at the same time',
+    );
     final response = await restApi.put(
       dataToJson(data),
       path: _buildPath(key),
-      printMode: silent && eTag == null ? PrintMode.silent : null,
+      printMode: silent ? PrintMode.silent : null,
       ifMatch: eTag,
       eTag: eTagReceiver != null,
     );
