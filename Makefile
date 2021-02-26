@@ -66,9 +66,8 @@ coverage/lcov.info: coverage/.generated
 
 coverage/lcov_cleaned.info: coverage/lcov.info
 	lcov --remove coverage/lcov.info -output-file coverage/lcov_cleaned.info \
-		'**/*.g.dart' \
-		'**/*.freezed.dart' \
-		'**/models/*.dart'
+            '**/*.g.dart' \
+            '**/*.freezed.dart'
 
 coverage/html/index.html: coverage/lcov_cleaned.info
 	genhtml --no-function-coverage -o coverage/html coverage/lcov_cleaned.info
