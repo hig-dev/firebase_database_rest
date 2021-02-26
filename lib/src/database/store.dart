@@ -3,9 +3,9 @@ import 'dart:async';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:meta/meta.dart';
 
-import '../rest/api_constants.dart';
+import '../common/api_constants.dart';
+import '../common/filter.dart';
 import '../rest/models/db_response.dart';
-import '../rest/models/filter.dart';
 import '../rest/models/post_response.dart';
 import '../rest/rest_api.dart';
 import 'etag_receiver.dart';

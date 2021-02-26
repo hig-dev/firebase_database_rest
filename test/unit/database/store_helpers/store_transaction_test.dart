@@ -1,9 +1,9 @@
+import 'package:firebase_database_rest/src/common/api_constants.dart';
+import 'package:firebase_database_rest/src/common/db_exception.dart';
 import 'package:firebase_database_rest/src/database/etag_receiver.dart';
 import 'package:firebase_database_rest/src/database/store.dart';
 import 'package:firebase_database_rest/src/database/store_helpers/store_transaction.dart';
 import 'package:firebase_database_rest/src/database/transaction.dart';
-import 'package:firebase_database_rest/src/rest/api_constants.dart';
-import 'package:firebase_database_rest/src/rest/models/db_exception.dart';
 import 'package:mockito/mockito.dart';
 import 'package:test/test.dart';
 

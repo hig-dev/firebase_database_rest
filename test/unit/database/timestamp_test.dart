@@ -1,5 +1,5 @@
-import 'package:firebase_database_rest/src/rest/api_constants.dart';
-import 'package:firebase_database_rest/src/rest/models/timestamp.dart';
+import 'package:firebase_database_rest/src/common/api_constants.dart';
+import 'package:firebase_database_rest/src/database/timestamp.dart';
 import 'package:test/test.dart';
 
 void main() {

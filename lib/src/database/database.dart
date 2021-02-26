@@ -3,8 +3,8 @@ import 'dart:async';
 import 'package:firebase_auth_rest/firebase_auth_rest.dart';
 import 'package:http/http.dart';
 
-import '../rest/api_constants.dart';
-import '../rest/models/timeout.dart';
+import '../common/api_constants.dart';
+import '../common/timeout.dart';
 import '../rest/rest_api.dart';
 import 'store.dart';
 

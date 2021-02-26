@@ -1,4 +1,4 @@
-import 'package:firebase_database_rest/src/rest/api_constants.dart';
+import 'package:firebase_database_rest/src/common/api_constants.dart';
 import 'package:test/test.dart';
 import 'package:tuple/tuple.dart';
 

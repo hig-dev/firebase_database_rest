@@ -1,4 +1,4 @@
-import 'package:firebase_database_rest/src/rest/models/filter.dart';
+import 'package:firebase_database_rest/src/common/filter.dart';
 import 'package:test/test.dart';
 
 void main() {

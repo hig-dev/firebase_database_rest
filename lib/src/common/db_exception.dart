@@ -1,7 +1,7 @@
 // coverage:ignore-file
 import 'package:freezed_annotation/freezed_annotation.dart';
 
-import '../api_constants.dart';
+import 'api_constants.dart';
 
 part 'db_exception.freezed.dart';
 part 'db_exception.g.dart';

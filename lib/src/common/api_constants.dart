@@ -28,6 +28,7 @@ extension WriteSizeLimitX on WriteSizeLimit {
 }
 
 abstract class ApiConstants {
+  // coverage:ignore-line
   const ApiConstants._();
 
   static const serverTimeStamp = <String, dynamic>{'.sv': 'timestamp'};

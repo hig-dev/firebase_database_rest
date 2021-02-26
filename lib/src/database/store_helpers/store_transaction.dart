@@ -1,7 +1,7 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
-import '../../rest/api_constants.dart';
-import '../../rest/models/db_exception.dart';
+import '../../common/api_constants.dart';
+import '../../common/db_exception.dart';
 import '../etag_receiver.dart';
 import '../store.dart';
 import '../transaction.dart';

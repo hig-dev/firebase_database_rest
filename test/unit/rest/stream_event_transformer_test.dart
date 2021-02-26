@@ -1,7 +1,7 @@
 import 'dart:async';
 
-import 'package:firebase_database_rest/src/rest/api_constants.dart';
-import 'package:firebase_database_rest/src/rest/models/db_exception.dart';
+import 'package:firebase_database_rest/src/common/api_constants.dart';
+import 'package:firebase_database_rest/src/common/db_exception.dart';
 import 'package:firebase_database_rest/src/rest/models/stream_event.dart';
 import 'package:firebase_database_rest/src/rest/models/unknown_stream_event_error.dart';
 import 'package:firebase_database_rest/src/rest/stream_event_transformer.dart';

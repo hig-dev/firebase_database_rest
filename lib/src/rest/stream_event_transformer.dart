@@ -3,10 +3,10 @@ import 'dart:convert';
 
 import 'package:meta/meta.dart';
 
+import '../common/api_constants.dart';
+import '../common/db_exception.dart';
 import '../common/transformer_sink.dart';
 import '../stream/server_sent_event.dart';
-import 'api_constants.dart';
-import 'models/db_exception.dart';
 import 'models/stream_event.dart';
 import 'models/unknown_stream_event_error.dart';
 

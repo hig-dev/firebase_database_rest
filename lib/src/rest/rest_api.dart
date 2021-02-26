@@ -3,13 +3,13 @@ import 'dart:convert';
 import 'package:http/http.dart';
 import 'package:path/path.dart';
 
+import '../common/api_constants.dart';
+import '../common/db_exception.dart';
+import '../common/filter.dart';
+import '../common/timeout.dart';
 import '../stream/event_source.dart';
-import 'api_constants.dart';
-import 'models/db_exception.dart';
 import 'models/db_response.dart';
-import 'models/filter.dart';
 import 'models/stream_event.dart';
-import 'models/timeout.dart';
 import 'stream_event_transformer.dart';
 
 class RestApi {
