@@ -15,7 +15,7 @@ void main() {
     Tuple3(Timeout.min(10), Duration(minutes: 10), '10min'),
   ], (fixture) {
     expect(fixture.item1.duration, fixture.item2);
-    expect(fixture.item1.serialize(), fixture.item3);
+    expect(fixture.item1.toString(), fixture.item3);
   });
 
   testData<Tuple2<Duration, Timeout>>(

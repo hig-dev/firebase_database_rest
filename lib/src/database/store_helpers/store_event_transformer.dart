@@ -9,14 +9,19 @@ import '../store.dart';
 import '../store_event.dart';
 import 'map_transform.dart';
 
+/// @nodoc
 @internal
 class StoreEventTransformerSink<T>
     extends TransformerSink<StreamEvent, StoreEvent<T>> with MapTransform<T> {
-  static final subPathRegexp = RegExp(r'^\/([^\/]+)$');
+  static final _subPathRegexp = RegExp(r'^\/([^\/]+)$');
 
+  /// @nodoc
   final DataFromJsonCallback<T> dataFromJson;
+
+  /// @nodoc
   final PatchSetFactory<T> patchSetFactory;
 
+  /// @nodoc
   StoreEventTransformerSink({
     required EventSink<StoreEvent<T>> outSink,
     required this.dataFromJson,
@@ -43,7 +48,7 @@ class StoreEventTransformerSink<T>
       );
 
   void _update(String path, dynamic data) {
-    final match = subPathRegexp.firstMatch(path);
+    final match = _subPathRegexp.firstMatch(path);
     if (match != null) {
       if (data != null) {
         outSink.add(StoreEvent.put(match[1]!, dataFromJson(data)));
@@ -56,7 +61,7 @@ class StoreEventTransformerSink<T>
   }
 
   void _patch(String path, dynamic data) {
-    final match = subPathRegexp.firstMatch(path);
+    final match = _subPathRegexp.firstMatch(path);
     if (match != null) {
       outSink.add(StoreEvent.patch(
         match[1]!,
@@ -72,11 +77,21 @@ class StoreEventTransformerSink<T>
   void _authRevoked() => addError(AuthRevokedException());
 }
 
+/// A stream transformer that converts a stream of [StreamEvent]s into a
+/// stream of [StoreEvent]s, deserializing the received data and turing database
+/// status updates into data updates.
+///
+/// **Note:** Typically, you would use [FirebaseStore.streamAll] instead of
+/// using this class directly.
 class StoreEventTransformer<T>
     implements StreamTransformer<StreamEvent, StoreEvent<T>> {
+  /// A callback that can convert the received JSON data to [T]
   final DataFromJsonCallback<T> dataFromJson;
+
+  /// A callback that can generate [PatchSet] instances for patch events
   final PatchSetFactory<T> patchSetFactory;
 
+  /// Default constructor
   const StoreEventTransformer({
     required this.dataFromJson,
     required this.patchSetFactory,

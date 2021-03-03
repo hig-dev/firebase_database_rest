@@ -2,8 +2,10 @@ import 'package:meta/meta.dart';
 
 import '../store.dart';
 
+/// @nodoc
 @internal
 mixin MapTransform<T> {
+  /// @nodoc
   @protected
   Map<String, T> mapTransform(
     dynamic data,

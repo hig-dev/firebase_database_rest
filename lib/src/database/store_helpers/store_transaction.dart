@@ -6,8 +6,10 @@ import '../etag_receiver.dart';
 import '../store.dart';
 import '../transaction.dart';
 
+/// @nodoc
 @internal
 class StoreTransaction<T> extends SingleCommitTransaction<T> {
+  /// @nodoc
   final FirebaseStore<T> store;
 
   @override
@@ -19,8 +21,10 @@ class StoreTransaction<T> extends SingleCommitTransaction<T> {
   @override
   final String eTag;
 
+  /// @nodoc
   final ETagReceiver? eTagReceiver;
 
+  /// @nodoc
   StoreTransaction({
     required this.store,
     required this.key,

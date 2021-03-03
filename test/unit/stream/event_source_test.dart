@@ -86,7 +86,7 @@ data: data2
     });
 
     test('sets last event id header if given', () async {
-      await mockClient.stream(Uri(), lastEventID: '42');
+      await mockClient.stream(Uri(), lastEventId: '42');
 
       final request = verify(
         mockClient.send(captureAny),

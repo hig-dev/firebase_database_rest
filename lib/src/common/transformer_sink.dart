@@ -2,10 +2,13 @@ import 'dart:async';
 
 import 'package:meta/meta.dart';
 
+/// @nodoc
 @internal
 abstract class TransformerSink<TSource, TDest> implements EventSink<TSource> {
+  /// @nodoc
   final EventSink<TDest> outSink;
 
+  /// @nodoc
   TransformerSink(this.outSink);
 
   @override

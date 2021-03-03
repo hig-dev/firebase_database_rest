@@ -15,7 +15,7 @@ analyzer:
 
 linter:
   rules:
-    # public_member_api_docs: true
+    public_member_api_docs: true
     cascade_invocations: true
     close_sinks: true
     lines_longer_than_80_chars: true

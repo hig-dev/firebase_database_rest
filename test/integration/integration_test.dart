@@ -1,6 +1,7 @@
 import 'dart:developer';
 
 import 'package:firebase_auth_rest/firebase_auth_rest.dart';
+import 'package:firebase_database_rest/firebase_database_rest.dart';
 import 'package:firebase_database_rest/src/common/api_constants.dart';
 import 'package:firebase_database_rest/src/common/db_exception.dart';
 import 'package:firebase_database_rest/src/common/filter.dart';
@@ -22,7 +23,7 @@ part 'integration_test.freezed.dart';
 part 'integration_test.g.dart';
 
 @freezed
-abstract class TestModel with _$TestModel {
+class TestModel with _$TestModel {
   const TestModel._();
 
   // ignore: sort_unnamed_constructors_first
@@ -30,6 +31,7 @@ abstract class TestModel with _$TestModel {
     required int id,
     String? data,
     @Default(false) bool extra,
+    FirebaseTimestamp? timestamp,
   }) = _TestModel;
 
   factory TestModel.fromJson(Map<String, dynamic> json) =>
@@ -39,6 +41,7 @@ abstract class TestModel with _$TestModel {
         id: json.containsKey('id') ? json['id'] : freezed,
         data: json.containsKey('data') ? json['data'] : freezed,
         extra: json.containsKey('extra') ? json['extra'] : freezed,
+        timestamp: json.containsKey('timestamp') ? json['timestamp'] : freezed,
       ) as TestModel;
 }
 
@@ -105,6 +108,7 @@ void main() {
     }
 
     await database.dispose();
+    database.account?.dispose();
     client.close();
 
     if (error) {
@@ -191,6 +195,31 @@ void main() {
       currentData: updateLocal1,
     );
     expect(updateRemote2, updateLocal2);
+  });
+
+  test('firebase timestamp', () async {
+    // create a manual timestamp
+    final d1 = TestModel(
+      id: 11,
+      timestamp: FirebaseTimestamp(DateTime(2020, 10, 10)),
+    );
+    final res1 = await store.write('d1', d1);
+    expect(res1, d1);
+
+    // create a server timestamp
+    final before = DateTime.now().subtract(const Duration(milliseconds: 1));
+    const d2 = TestModel(
+      id: 22,
+      timestamp: FirebaseTimestamp.server(),
+    );
+    final res2 = await store.write('d2', d2);
+    final after = DateTime.now().add(const Duration(milliseconds: 1));
+    expect(res2, isNotNull);
+    expect(res2!.id, d2.id);
+    expect(
+      res2.timestamp!.dateTime,
+      predicate<DateTime>((d) => d.isAfter(before) && d.isBefore(after)),
+    );
   });
 
   test('all and keys report all data, destroy deletes all', () async {
@@ -761,10 +790,15 @@ void main() {
         expect(stream, isEmpty);
 
         await store.update(key, const <String, dynamic>{'extra': true});
-        await expectLater(
-          stream,
-          emitsQueued(const ValueEvent.update(TestModel(id: 5, extra: true))),
+        final patchEvent = await stream.next();
+        expect(patchEvent, isNotNull);
+        final patch = patchEvent!.maybeWhen(
+          patch: (patchSet) => patchSet,
+          orElse: () => null,
         );
+        expect(patch, isNotNull);
+        final patched = patch!.apply(const TestModel(id: 1));
+        expect(patched, const TestModel(id: 1, extra: true));
 
         await store.delete(key);
         await expectLater(

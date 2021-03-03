@@ -5,18 +5,20 @@ import 'package:meta/meta.dart';
 import '../../common/transformer_sink.dart';
 import '../../rest/models/stream_event.dart';
 import '../auth_revoked_exception.dart';
-import '../patch_on_null_error.dart';
 import '../store.dart';
 import '../store_event.dart';
 
+/// @nodoc
 @internal
 class StoreValueEventTransformerSink<T>
     extends TransformerSink<StreamEvent, ValueEvent<T>> {
+  /// @nodoc
   final DataFromJsonCallback<T> dataFromJson;
+
+  /// @nodoc
   final PatchSetFactory<T> patchSetFactory;
 
-  T? _currentValue;
-
+  /// @nodoc
   StoreValueEventTransformerSink({
     required EventSink<ValueEvent<T>> outSink,
     required this.dataFromJson,
@@ -33,11 +35,9 @@ class StoreValueEventTransformerSink<T>
   void _put(String path, dynamic data) {
     if (path == '/') {
       if (data == null) {
-        _currentValue = null;
         outSink.add(const ValueEvent.delete());
       } else {
-        _currentValue = dataFromJson(data);
-        outSink.add(ValueEvent.update(_currentValue!));
+        outSink.add(ValueEvent.update(dataFromJson(data)));
       }
     } else {
       outSink.add(ValueEvent.invalidPath(path));
@@ -46,13 +46,8 @@ class StoreValueEventTransformerSink<T>
 
   void _patch(String path, dynamic data) {
     if (path == '/') {
-      if (_currentValue == null) {
-        outSink.addError(PatchOnNullError());
-        return;
-      }
       final patch = patchSetFactory(data as Map<String, dynamic>);
-      _currentValue = patch.apply(_currentValue!);
-      outSink.add(ValueEvent.update(_currentValue!));
+      outSink.add(ValueEvent.patch(patch));
     } else {
       outSink.add(ValueEvent.invalidPath(path));
     }
@@ -61,11 +56,21 @@ class StoreValueEventTransformerSink<T>
   void _authRevoked() => addError(AuthRevokedException());
 }
 
+/// A stream transformer that converts a stream of [StreamEvent]s into a
+/// stream of [ValueEvent]s, deserializing the received data and turing database
+/// status updates into data updates.
+///
+/// **Note:** Typically, you would use [FirebaseStore.streamEntry] instead of
+/// using this class directly.
 class StoreValueEventTransformer<T>
     implements StreamTransformer<StreamEvent, ValueEvent<T>> {
+  /// A callback that can convert the received JSON data to [T]
   final DataFromJsonCallback<T> dataFromJson;
+
+  /// A callback that can generate [PatchSet] instances for patch events
   final PatchSetFactory<T> patchSetFactory;
 
+  /// Default constructor
   const StoreValueEventTransformer({
     required this.dataFromJson,
     required this.patchSetFactory,

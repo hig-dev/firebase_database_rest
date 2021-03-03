@@ -6,12 +6,14 @@ import '../common/transformer_sink.dart';
 
 import 'server_sent_event.dart';
 
+/// @nodoc
 @internal
 class EventStreamDecoderSink extends TransformerSink<String, ServerSentEvent> {
   String? _eventType;
   String? _lastEventId;
   final _data = <String>[];
 
+  /// @nodoc
   EventStreamDecoderSink(EventSink<ServerSentEvent> outSink) : super(outSink);
 
   @override
@@ -59,7 +61,27 @@ class EventStreamDecoderSink extends TransformerSink<String, ServerSentEvent> {
   }
 }
 
+/// A stream transformer that converts a string stream into a stream of
+/// [ServerSentEvent]s
+///
+/// **Note:** Typically, you would use [EventSource] instead of using this
+/// class directly.
+///
+/// Expects each string to represent one line. This means any input stream must
+/// first be split into lines before beeing passed to this transformer. It will
+/// consume multiple lines to generate SSE events from the data.
+///
+/// A typical usage would be to use for example the [StreamedResponse] from the
+/// `http` package and transform it in multiple steps like this:
+/// ```.dart
+/// StreamedResponse response = // ...
+/// final sseStream = response.stream
+///   .transform(utf8.decoder)
+///   .transform(const LineSplitter())
+///   .transform(const EventStreamDecoder());
+/// ```
 class EventStreamDecoder implements StreamTransformer<String, ServerSentEvent> {
+  /// Default constructor
   const EventStreamDecoder();
 
   @override

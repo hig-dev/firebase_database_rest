@@ -4,13 +4,13 @@ import 'package:test/test.dart';
 
 void main() {
   test('default constructor wraps datetime', () {
-    final dateTime = DateTime.now();
+    final dateTime = DateTime(2021, 11, 11, 4, 6, 8, 357);
     final timestamp = FirebaseTimestamp(dateTime);
 
     expect(timestamp.dateTime, dateTime);
-    expect(timestamp.toJson(), dateTime.toIso8601String());
+    expect(timestamp.toJson(), dateTime.millisecondsSinceEpoch);
 
-    final jStamp = FirebaseTimestamp.fromJson(dateTime.toIso8601String());
+    final jStamp = FirebaseTimestamp.fromJson(dateTime.millisecondsSinceEpoch);
     expect(jStamp, timestamp);
   });
 

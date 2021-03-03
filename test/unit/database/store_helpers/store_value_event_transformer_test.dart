@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:firebase_database_rest/src/database/auth_revoked_exception.dart';
-import 'package:firebase_database_rest/src/database/patch_on_null_error.dart';
 import 'package:firebase_database_rest/src/database/store_event.dart';
 import 'package:firebase_database_rest/src/database/store_helpers/store_value_event_transformer.dart';
 import 'package:firebase_database_rest/src/rest/models/stream_event.dart';
@@ -18,7 +17,7 @@ part 'store_value_event_transformer_test.freezed.dart';
 part 'store_value_event_transformer_test.g.dart';
 
 @freezed
-abstract class TestModel with _$TestModel {
+class TestModel with _$TestModel {
   const factory TestModel(int id, String data) = _TestModel;
 
   factory TestModel.fromJson(Map<String, dynamic> json) =>
@@ -26,8 +25,9 @@ abstract class TestModel with _$TestModel {
 }
 
 @freezed
-abstract class TestModelPatchSet
-    implements _$TestModelPatchSet, PatchSet<TestModel> {
+class TestModelPatchSet
+    with _$TestModelPatchSet
+    implements PatchSet<TestModel> {
   const TestModelPatchSet._();
 
   // ignore: sort_unnamed_constructors_first
@@ -88,7 +88,7 @@ void main() {
           ),
           Tuple3(
             StreamEvent.patch(path: '/', data: {'data': 'D'}),
-            ValueEvent.update(TestModel(4, 'D')),
+            ValueEvent.patch(TestModelPatchSet(<String, dynamic>{'data': 'D'})),
             TestModel(4, 'A'),
           ),
           Tuple3(
@@ -108,14 +108,6 @@ void main() {
           verifyNoMoreInteractions(mockValueEventSink);
         },
       );
-
-      test('maps patch on null to error', () {
-        sut.add(const StreamEvent.patch(path: '/', data: {'data': 'F'}));
-        verify(
-          mockValueEventSink.addError(argThat(isA<PatchOnNullError>())),
-        );
-        verifyNoMoreInteractions(mockValueEventSink);
-      });
 
       test('maps auth revoked to error', () {
         sut.add(const StreamEvent.authRevoked());

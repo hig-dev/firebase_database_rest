@@ -17,7 +17,7 @@ part 'store_event_transformer_test.freezed.dart';
 part 'store_event_transformer_test.g.dart';
 
 @freezed
-abstract class TestModel with _$TestModel {
+class TestModel with _$TestModel {
   const factory TestModel(int id, String data) = _TestModel;
 
   factory TestModel.fromJson(Map<String, dynamic> json) =>
@@ -25,8 +25,9 @@ abstract class TestModel with _$TestModel {
 }
 
 @freezed
-abstract class TestModelPatchSet
-    implements _$TestModelPatchSet, PatchSet<TestModel> {
+class TestModelPatchSet
+    with _$TestModelPatchSet
+    implements PatchSet<TestModel> {
   const TestModelPatchSet._();
 
   // ignore: sort_unnamed_constructors_first

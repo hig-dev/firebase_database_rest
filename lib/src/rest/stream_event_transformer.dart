@@ -10,9 +10,11 @@ import '../stream/server_sent_event.dart';
 import 'models/stream_event.dart';
 import 'models/unknown_stream_event_error.dart';
 
+/// @nodoc
 @internal
 class StreamEventTransformerSink
     extends TransformerSink<ServerSentEvent, StreamEvent> {
+  /// @nodoc
   StreamEventTransformerSink(EventSink<StreamEvent> outSink) : super(outSink);
 
   @override
@@ -46,8 +48,18 @@ class StreamEventTransformerSink
   }
 }
 
+/// A stream transformer that converts a stream of [ServerSentEvent]s into a
+/// stream of [StreamEvent]s, decoding the event types used by firebase.
+///
+/// **Note:** Typically, you would use [RestApi.stream] instead of using this
+/// class directly.
+///
+/// If any events are received that are not known by this library, a
+/// [UnknownStreamEventError] is thrown. As this is an error, this should never
+/// happen, unless firebase decides to change how their APIs work.
 class StreamEventTransformer
     implements StreamTransformer<ServerSentEvent, StreamEvent> {
+  /// Default constructor
   const StreamEventTransformer();
 
   @override

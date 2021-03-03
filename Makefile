@@ -1,3 +1,10 @@
+# sources
+LIB_FILES = $(shell find ./lib -type f -iname "*.dart")
+SRC_FILES = $(shell find ./lib/src -type f -iname "*.dart")
+UNIT_TEST_FILES = $(shell find ./test/unit -type f -iname "*.dart")
+INTEGRATION_TEST_FILES = $(shell find ./test/integration -type f -iname "*.dart")
+TEST_FILES = $(UNIT_TEST_FILES) $(INTEGRATION_TEST_FILES)
+
 #get 
 .packages: pubspec.yaml
 	dart pub get
@@ -52,7 +59,7 @@ test: get
 	$(MAKE) integration-tests
 
 # coverage
-coverage/.generated: .packages $(wildcard test/*.dart) $(wildcard src/*.dart) $(wildcard bin/*.dart)
+coverage/.generated: .packages $(SRC_FILES) $(UNIT_TEST_FILES)
 	@rm -rf coverage
 	dart --no-sound-null-safety --null-assertions test --coverage=coverage test/unit
 	touch coverage/.generated
@@ -80,7 +87,7 @@ coverage-open: coverage/html/index.html
 	xdg-open coverage/html/index.html || start coverage/html/index.html
 
 #doc 
-doc/api/index.html: .packages $(wildcard src/*.dart) $(wildcard bin/*.dart)
+doc/api/index.html: .packages $(LIB_FILES)
 	@rm -rf doc
 	dartdoc --show-progress
 

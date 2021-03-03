@@ -18,7 +18,7 @@ part 'store_test.freezed.dart';
 part 'store_test.g.dart';
 
 @freezed
-abstract class TestModel with _$TestModel {
+class TestModel with _$TestModel {
   const factory TestModel(int id, String data) = _TestModel;
 
   factory TestModel.fromJson(Map<String, dynamic> json) =>

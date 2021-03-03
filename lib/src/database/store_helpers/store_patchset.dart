@@ -5,11 +5,13 @@ import '../store_event.dart';
 
 part 'store_patchset.freezed.dart';
 
+/// @nodoc
 @internal
 @freezed
-abstract class StorePatchSet<T> with _$StorePatchSet<T> implements PatchSet<T> {
+class StorePatchSet<T> with _$StorePatchSet<T> implements PatchSet<T> {
   const StorePatchSet._();
 
+  /// @nodoc
   // ignore: sort_unnamed_constructors_first
   const factory StorePatchSet({
     required FirebaseStore<T> store,

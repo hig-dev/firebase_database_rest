@@ -12,15 +12,35 @@ import 'models/db_response.dart';
 import 'models/stream_event.dart';
 import 'stream_event_transformer.dart';
 
+/// A class to communicated with the firebase realtime database REST-API
+///
+/// Many methods of this class accept an `eTag` parameter. The Firebase ETag is
+/// the unique identifier for the current data at a specified location. If the
+/// data changes at that location, the ETag changes, too. If set, the class
+/// will request this eTag and return in via [DbResponse.eTag].
 class RestApi {
+  /// The HTTP-Client that should be used to send requests.
   final Client client;
+
+  /// The name of the database to connect to.
   final String database;
+
+  /// A sub path in the database to use as virtual root path.
   final String basePath;
 
+  /// The idToken to use for requests.
+  ///
+  /// If set to null, all requests will be unauthenticated. If set, all requests
+  /// will add the auth parameter and thus be authenticated.
   String? idToken;
+
+  /// The timeout for read requests. See [Timeout].
   Timeout? timeout;
+
+  /// The limit for how big write requests can be. See [WriteSizeLimit].
   WriteSizeLimit? writeSizeLimit;
 
+  /// Default constructor.
   RestApi({
     required this.client,
     required this.database,
@@ -30,6 +50,24 @@ class RestApi {
     this.writeSizeLimit,
   });
 
+  /// Sends a get requests to the database to read some data.
+  ///
+  /// Tries to read the data at [path], or the whole virtual root, if not set.
+  /// The [printMode] and [formatMode] can be used to control how data is
+  /// formatted by the server.
+  ///
+  /// The [shallow] parameter can be used to help you work with large datasets
+  /// without needing to download everything. Set this to true to limit the
+  /// depth of the data returned at a location. If the data at the location is
+  /// a JSON primitive (string, number or boolean), its value will simply be
+  /// returned. If the data snapshot at the location is a JSON object, the
+  /// values for each key will be truncated to true.
+  ///
+  /// If [filter] is added, that filter will be applied to filter the results
+  /// returned by the server. See [Filter] for more details.
+  ///
+  /// Finally, the [eTag] parameter can be set to true to request an eTag for
+  /// the given data.
   Future<DbResponse> get({
     String? path,
     PrintMode? printMode,
@@ -53,6 +91,20 @@ class RestApi {
     return _parseResponse(response, eTag);
   }
 
+  /// Sends a post requests to the database to create new data.
+  ///
+  /// Tries to create a new child entry at [path], or the whole virtual root,
+  /// if not set. The target location must be an object or array for this to
+  /// work. If posting to an array, the [body] is simply appended. For objects,
+  /// a new random key is generated and the [body] added to the object under
+  /// that key. In either cases, the returned result contains the id of the
+  /// newly created entry.
+  ///
+  /// The [printMode] can be used to control how data is formatted by the
+  /// server.
+  ///
+  /// Finally, the [eTag] parameter can be set to true to request an eTag for
+  /// the given data.
   Future<DbResponse> post(
     dynamic body, {
     String? path,
@@ -73,6 +125,18 @@ class RestApi {
     return _parseResponse(response, eTag);
   }
 
+  /// Sends a put requests to the database to write some data.
+  ///
+  /// Tries to write the [body] to [path], or to the virtual root, if not set.
+  /// The [printMode] can be used to control how data is formatted by the
+  /// server.
+  ///
+  /// Finally, the [eTag] parameter can be set to true to request an eTag for
+  /// the given data. If you only want to be able to write data if it was not
+  /// changed, pass a previously acquired eTag as [ifMatch]. In case the eTag
+  /// does not match, the request will fail with the
+  /// [ApiConstants.statusCodeETagMismatch] status code. To only write data that
+  /// does not exist yet, use [ApiConstants.nullETag] as value for [ifMatch].
   Future<DbResponse> put(
     dynamic body, {
     String? path,
@@ -95,6 +159,15 @@ class RestApi {
     return _parseResponse(response, eTag);
   }
 
+  /// Sends a patch requests to the database to update some data.
+  ///
+  /// Tries to update the given fields of [updateChildren] to their new values
+  /// at [path], or to the virtual root, if not set. Only fields explicitly
+  /// specified are updated, all other fields are not modified. To delete a
+  /// field, set the update value to `null`.
+  ///
+  /// The [printMode] can be used to control how data is formatted by the
+  /// server.
   Future<DbResponse> patch(
     Map<String, dynamic> updateChildren, {
     String? path,
@@ -113,6 +186,18 @@ class RestApi {
     return _parseResponse(response, false);
   }
 
+  /// Sends a delete requests to the database to delete some data.
+  ///
+  /// Tries to delete the data at [path], or the whole virtual root, if not set.
+  /// The [printMode] can be used to control how data is formatted by the
+  /// server.
+  ///
+  /// Finally, the [eTag] parameter can be set to true to request an eTag for
+  /// the given data. The resulting eTag should always be
+  /// [ApiConstants.nullETag]. If you only want to be able to delete data if it
+  /// was not changed, pass a previously acquired eTag as [ifMatch]. In case
+  /// the eTag does not match, the request will fail with the
+  /// [ApiConstants.statusCodeETagMismatch] status code.
   Future<DbResponse> delete({
     String? path,
     PrintMode? printMode,
@@ -132,6 +217,27 @@ class RestApi {
     return _parseResponse(response, eTag);
   }
 
+  /// Sends a get requests to the database to stream changes.
+  ///
+  /// Tries to stream the data at [path], or the whole virtual root, if not set.
+  /// The [printMode] and [formatMode] can be used to control how data is
+  /// formatted by the server.
+  ///
+  /// The resulting future will stream various [StreamEvent]s, which provide
+  /// realtime information about how data is changed in the database. Please
+  /// note that the first element of every stream will be a [StreamEvent.put]
+  /// with the current state of the database at [path]. All events after that
+  /// are fired as data is manipulated in the database.
+  ///
+  /// The [shallow] parameter can be used to help you work with large datasets
+  /// without needing to download everything. Set this to true to limit the
+  /// depth of the data returned at a location. If the data at the location is
+  /// a JSON primitive (string, number or boolean), its value will simply be
+  /// returned. If the data snapshot at the location is a JSON object, the
+  /// values for each key will be truncated to true.
+  ///
+  /// If [filter] is added, that filter will be applied to filter the results
+  /// returned by the server. See [Filter] for more details.
   Future<Stream<StreamEvent>> stream({
     String? path,
     PrintMode? printMode,
@@ -167,7 +273,7 @@ class RestApi {
       ),
       queryParameters: <String, dynamic>{
         if (idToken != null) 'auth': idToken!,
-        if (timeout != null) 'timeout': timeout!.serialize(),
+        if (timeout != null) 'timeout': timeout!.toString(),
         if (writeSizeLimit != null) 'writeSizeLimit': writeSizeLimit!.value,
         if (printMode != null) 'print': printMode.value,
         if (formatMode != null) 'format': formatMode.value,

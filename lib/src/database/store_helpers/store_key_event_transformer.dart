@@ -7,11 +7,13 @@ import '../../rest/models/stream_event.dart';
 import '../auth_revoked_exception.dart';
 import '../store_event.dart';
 
+/// @nodoc
 @internal
 class StoreKeyEventTransformerSink
     extends TransformerSink<StreamEvent, KeyEvent> {
-  static final subPathRegexp = RegExp(r'^\/([^\/]+)$');
+  static final _subPathRegexp = RegExp(r'^\/([^\/]+)$');
 
+  /// @nodoc
   StoreKeyEventTransformerSink(EventSink<KeyEvent> outSink) : super(outSink);
 
   @override
@@ -39,7 +41,7 @@ class StoreKeyEventTransformerSink
   }
 
   void _value(String path, dynamic data) {
-    final match = subPathRegexp.firstMatch(path);
+    final match = _subPathRegexp.firstMatch(path);
     if (match != null) {
       if (data == null) {
         outSink.add(KeyEvent.delete(match[1]!));
@@ -54,8 +56,15 @@ class StoreKeyEventTransformerSink
   void _authRevoked() => addError(AuthRevokedException());
 }
 
+/// A stream transformer that converts a stream of [StreamEvent]s into a
+/// stream of [KeyEvent]s, deserializing the received data and turing database
+/// status updates into key updates.
+///
+/// **Note:** Typically, you would use [FirebaseStore.streamKeys] instead of
+/// using this class directly.
 class StoreKeyEventTransformer
     implements StreamTransformer<StreamEvent, KeyEvent> {
+  /// Default constructor
   const StoreKeyEventTransformer();
 
   @override
