@@ -35,7 +35,7 @@ jobs:
           FIREBASE_API_KEY: ${{ secrets.FIREBASE_API_KEY }}
       - uses: VeryGoodOpenSource/very_good_coverage@v1.1.1
         with:
-          min_coverage: 85
+          min_coverage: 80
           exclude: |
             **/*.g.dart 
             **/*.freezed.dart 
