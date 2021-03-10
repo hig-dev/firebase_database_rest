@@ -25,7 +25,19 @@ class TestModel with _$TestModel {
       _$TestModelFromJson(json);
 }
 
-class MockParentStore extends Mock implements FirebaseStore<dynamic> {}
+class MockParentStore extends Mock implements FirebaseStore<dynamic> {
+  @override
+  RestApi get restApi => super.noSuchMethod(
+        Invocation.getter(#restApi),
+        returnValue: MockRestApi(),
+      ) as RestApi;
+
+  @override
+  List<String> get subPaths => super.noSuchMethod(
+        Invocation.getter(#subPaths),
+        returnValue: const <String>[],
+      ) as List<String>;
+}
 
 class ConstructorTestStore extends FirebaseStore<int> {
   ConstructorTestStore({

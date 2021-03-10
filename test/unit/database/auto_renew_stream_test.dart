@@ -2,17 +2,21 @@ import 'dart:async';
 
 import 'package:firebase_database_rest/src/database/auth_revoked_exception.dart';
 import 'package:firebase_database_rest/src/database/auto_renew_stream.dart';
+import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
 import 'package:test/test.dart';
 
 import '../../stream_matcher_queue.dart';
 
+import 'auto_renew_stream_test.mocks.dart';
+
 abstract class Callable {
   Future<Stream<int>> call();
 }
 
-class MockCallable extends Mock implements Callable {}
-
+@GenerateMocks([
+  Callable,
+])
 void main() {
   final mockStreamFactory = MockCallable();
 

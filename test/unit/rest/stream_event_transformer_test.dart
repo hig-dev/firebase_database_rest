@@ -98,7 +98,7 @@ void main() {
         sut.add(event);
 
         verify(mockStreamEventSink.addError(argThat(predicate((e) {
-          final err = e as UnknownStreamEventError;
+          final err = e! as UnknownStreamEventError;
           return err.event == event;
         }))));
         verifyNoMoreInteractions(mockStreamEventSink);

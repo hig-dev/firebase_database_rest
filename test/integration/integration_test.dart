@@ -207,13 +207,13 @@ void main() {
     expect(res1, d1);
 
     // create a server timestamp
-    final before = DateTime.now().subtract(const Duration(milliseconds: 1));
+    final before = DateTime.now().subtract(const Duration(seconds: 1));
     const d2 = TestModel(
       id: 22,
       timestamp: FirebaseTimestamp.server(),
     );
     final res2 = await store.write('d2', d2);
-    final after = DateTime.now().add(const Duration(milliseconds: 1));
+    final after = DateTime.now().add(const Duration(seconds: 1));
     expect(res2, isNotNull);
     expect(res2!.id, d2.id);
     expect(

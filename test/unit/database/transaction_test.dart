@@ -1,10 +1,11 @@
 // ignore_for_file: invalid_use_of_protected_member
 
 import 'package:firebase_database_rest/src/database/transaction.dart';
+import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
 import 'package:test/test.dart';
 
-class MockHelper extends Mock implements SingleCommitTransaction<int?> {}
+import 'transaction_test.mocks.dart';
 
 class TestTransaction extends SingleCommitTransaction<int?> {
   final mock = MockHelper();
@@ -19,12 +20,15 @@ class TestTransaction extends SingleCommitTransaction<int?> {
   int? get value => mock.value;
 
   @override
-  Future<void> commitDeleteImpl() => mock.commitDeleteImpl();
+  Future<void> commitDeleteImpl() => mock.commitDelete();
 
   @override
-  Future<int?> commitUpdateImpl(int? data) => mock.commitUpdateImpl(data);
+  Future<int?> commitUpdateImpl(int? data) => mock.commitUpdate(data);
 }
 
+@GenerateMocks([], customMocks: [
+  MockSpec<FirebaseTransaction<int?>>(as: #MockHelper),
+])
 void main() {
   group('SingleCommitTransaction', () {
     late TestTransaction sut;
@@ -45,14 +49,14 @@ void main() {
 
     group('allow only once commit', () {
       setUp(() {
-        when(sut.mock.commitDeleteImpl()).thenAnswer((i) async {});
-        when(sut.mock.commitUpdateImpl(any)).thenAnswer((i) async => 42);
+        when(sut.mock.commitDelete()).thenAnswer((i) async {});
+        when(sut.mock.commitUpdate(any)).thenAnswer((i) async => 42);
       });
 
       test('update, update', () async {
         final res = await sut.commitUpdate(13);
         expect(res, 42);
-        verify(sut.mock.commitUpdateImpl(13));
+        verify(sut.mock.commitUpdate(13));
 
         expect(
           () => sut.commitUpdate(31),
@@ -64,7 +68,7 @@ void main() {
       test('update, delete', () async {
         final res = await sut.commitUpdate(13);
         expect(res, 42);
-        verify(sut.mock.commitUpdateImpl(13));
+        verify(sut.mock.commitUpdate(13));
 
         expect(
           () => sut.commitDelete(),
@@ -75,7 +79,7 @@ void main() {
 
       test('delete, update', () async {
         await sut.commitDelete();
-        verify(sut.mock.commitDeleteImpl());
+        verify(sut.mock.commitDelete());
 
         expect(
           () => sut.commitUpdate(31),
@@ -86,7 +90,7 @@ void main() {
 
       test('delete, delete', () async {
         await sut.commitDelete();
-        verify(sut.mock.commitDeleteImpl());
+        verify(sut.mock.commitDelete());
 
         expect(
           () => sut.commitDelete(),

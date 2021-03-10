@@ -18,7 +18,7 @@ mixin MapTransform<T> {
                 .map(
                   (entry) => MapEntry(
                     entry.key,
-                    dataFromJson(entry.value!),
+                    dataFromJson(entry.value),
                   ),
                 )
                 .cast() ??

@@ -8,7 +8,7 @@ class MockFirebaseStore extends Mock implements FirebaseStore<int> {
   int patchData(int? data, Map<String, dynamic>? updatedFields) =>
       super.noSuchMethod(
         Invocation.method(#patchData, [data, updatedFields]),
-        returnValueForMissingStub: 0,
+        returnValue: 0,
       ) as int;
 }
 

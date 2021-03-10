@@ -199,7 +199,7 @@ abstract class FirebaseStore<T> with MapTransform<T> {
       eTag: eTagReceiver != null,
     );
     _applyETag(eTagReceiver, response);
-    return response.data != null ? dataFromJson(response.data!) : null;
+    return response.data != null ? dataFromJson(response.data) : null;
   }
 
   /// Writes the given data to the store.
@@ -234,7 +234,7 @@ abstract class FirebaseStore<T> with MapTransform<T> {
     );
     _applyETag(eTagReceiver, response);
     return !silent && response.data != null
-        ? dataFromJson(response.data!)
+        ? dataFromJson(response.data)
         : null;
   }
 
@@ -360,7 +360,7 @@ abstract class FirebaseStore<T> with MapTransform<T> {
     return StoreTransaction(
       store: this,
       key: key,
-      value: response.data != null ? dataFromJson(response.data!) : null,
+      value: response.data != null ? dataFromJson(response.data) : null,
       eTag: response.eTag!,
       eTagReceiver: eTagReceiver,
     );

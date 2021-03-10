@@ -47,12 +47,12 @@ analyze: .packages
 
 # test
 unit-tests: get
-	dart --no-sound-null-safety --null-assertions test test/unit
+	dart test test/unit
 
 integration-tests: get
 	@test -n "$(FIREBASE_PROJECT_ID)"
 	@test -n "$(FIREBASE_API_KEY)"
-	dart --no-sound-null-safety --null-assertions test test/integration
+	dart test test/integration
 
 test: get
 	$(MAKE) unit-tests
@@ -61,7 +61,7 @@ test: get
 # coverage
 coverage/.generated: .packages $(SRC_FILES) $(UNIT_TEST_FILES)
 	@rm -rf coverage
-	dart --no-sound-null-safety --null-assertions test --coverage=coverage test/unit
+	dart test --coverage=coverage test/unit
 	touch coverage/.generated
 
 coverage/lcov.info: coverage/.generated

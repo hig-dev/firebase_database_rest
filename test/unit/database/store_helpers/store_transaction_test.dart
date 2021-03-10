@@ -26,6 +26,7 @@ class MockFirebaseStore extends Mock implements FirebaseStore<int> {
             #eTagReceiver: eTagReceiver,
           },
         ),
+        returnValue: Future<int?>.value(),
         returnValueForMissingStub: Future<int?>.value(),
       ) as Future<int?>;
 
@@ -44,6 +45,7 @@ class MockFirebaseStore extends Mock implements FirebaseStore<int> {
             #eTagReceiver: eTagReceiver,
           },
         ),
+        returnValue: Future<void>.value(),
         returnValueForMissingStub: Future<void>.value(),
       ) as Future<void>;
 }
