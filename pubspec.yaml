@@ -1,7 +1,7 @@
 name: firebase_database_rest
 description: A platform independent Dart/Flutter wrapper for the Firebase
   Realtime Database API based on REST.
-version: 1.0.1
+version: 1.0.2
 homepage: https://github.com/Skycoder42/firebase_database_rest
 
 environment:

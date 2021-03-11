@@ -6,6 +6,7 @@ export 'src/database/auth_revoked_exception.dart';
 export 'src/database/auto_renew_stream.dart';
 export 'src/database/database.dart';
 export 'src/database/etag_receiver.dart';
+export 'src/database/json_converter.dart';
 export 'src/database/store.dart';
 export 'src/database/store_event.dart';
 export 'src/database/store_helpers/store_event_transformer.dart'
