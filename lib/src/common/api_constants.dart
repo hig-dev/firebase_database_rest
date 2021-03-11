@@ -54,8 +54,7 @@ extension WriteSizeLimitX on WriteSizeLimit {
 
 /// Various constants, relevant for the Realtime database API
 abstract class ApiConstants {
-  // coverage:ignore-line
-  const ApiConstants._();
+  const ApiConstants._(); // coverage:ignore-line
 
   /// The time since UNIX epoch, in milliseconds.
   static const serverTimeStamp = <String, dynamic>{'.sv': 'timestamp'};

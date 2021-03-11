@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:freezed_annotation/freezed_annotation.dart';
+import 'package:freezed_annotation/freezed_annotation.dart' hide JsonConverter;
 import 'package:meta/meta.dart';
 
 import '../../firebase_database_rest.dart';
@@ -10,6 +10,7 @@ import '../rest/models/db_response.dart';
 import '../rest/models/post_response.dart';
 import '../rest/rest_api.dart';
 import 'etag_receiver.dart';
+import 'json_converter.dart';
 import 'store_event.dart';
 import 'store_helpers/callback_store.dart';
 import 'store_helpers/map_transform.dart';
@@ -60,7 +61,9 @@ typedef PatchSetFactory<T> = PatchSet<T> Function(
 /// representation of whatever you want to store there. You can either extend
 /// this class and implement the required methods, or you can use
 /// [FirebaseStore.create] and pass callbacks to it to do the same.
-abstract class FirebaseStore<T> with MapTransform<T> {
+abstract class FirebaseStore<T>
+    with MapTransform<T>
+    implements JsonConverter<T> {
   /// The underlying [RestApi] that is used to communicate with the server.
   final RestApi restApi;
 
@@ -468,24 +471,13 @@ abstract class FirebaseStore<T> with MapTransform<T> {
     _applyETag(eTagReceiver, response);
   }
 
-  /// A virtual method that converts a [json] object to a data type.
-  ///
-  /// The [json] beeing passed to this method can never be `null`.
-  @protected
-  T dataFromJson(dynamic json); // json cannot be null
+  @override
+  T dataFromJson(dynamic json);
 
-  /// A virtual method that converts a [data] type to a json object.
-  ///
-  /// The json beeing returned from this method **must never** be `null`.
-  @protected
-  dynamic dataToJson(T data); // return cannot be null
+  @override
+  dynamic dataToJson(T data);
 
-  /// A virtual method that applies a set of [updatedFields] on existing [data].
-  ///
-  /// This should return a copy of [data], with all fields that appear in
-  /// [updatedFields] updated to the respective value. Any fields that do not
-  /// appear in [updatedFields] should stay unchanged.
-  @protected
+  @override
   T patchData(T data, Map<String, dynamic> updatedFields);
 
   String _buildPath([String? key]) =>

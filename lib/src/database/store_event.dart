@@ -1,6 +1,6 @@
+// coverage:ignore-file
 import 'package:freezed_annotation/freezed_annotation.dart';
 
-// coverage:ignore-file
 import '../../firebase_database_rest.dart';
 
 part 'store_event.freezed.dart';
