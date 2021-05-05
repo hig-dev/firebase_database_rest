@@ -4,19 +4,14 @@ import 'package:firebase_database_rest/src/database/auth_revoked_exception.dart'
 import 'package:firebase_database_rest/src/database/store_event.dart';
 import 'package:firebase_database_rest/src/database/store_helpers/store_key_event_transformer.dart';
 import 'package:firebase_database_rest/src/rest/models/stream_event.dart';
-import 'package:mockito/annotations.dart';
-import 'package:mockito/mockito.dart';
+import 'package:mocktail/mocktail.dart';
 import 'package:test/test.dart';
 import 'package:tuple/tuple.dart';
 
 import '../../../test_data.dart';
-import 'store_key_event_transformer_test.mocks.dart';
 
-abstract class KeyEventSink extends EventSink<KeyEvent> {}
+class MockKeyEventSink extends Mock implements EventSink<KeyEvent> {}
 
-@GenerateMocks([], customMocks: [
-  MockSpec<KeyEventSink>(returnNullOnMissingStub: true),
-])
 void main() {
   group('StoreKeyEventTransformerSink', () {
     final mockKeyEventSink = MockKeyEventSink();
@@ -98,7 +93,8 @@ void main() {
       test('maps auth revoked to error', () {
         sut.add(const StreamEvent.authRevoked());
         verify(
-          mockKeyEventSink.addError(argThat(isA<AuthRevokedException>())),
+          () =>
+              mockKeyEventSink.addError(any(that: isA<AuthRevokedException>())),
         );
         verifyNoMoreInteractions(mockKeyEventSink);
       });
@@ -110,13 +106,13 @@ void main() {
 
       sut.addError(error, trace);
 
-      verify(mockKeyEventSink.addError(error, trace));
+      verify(() => mockKeyEventSink.addError(error, trace));
     });
 
     test('close forwards close event', () {
       sut.close();
 
-      verify(mockKeyEventSink.close());
+      verify(() => mockKeyEventSink.close());
     });
   });
 

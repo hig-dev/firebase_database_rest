@@ -4,51 +4,10 @@ import 'package:firebase_database_rest/src/database/etag_receiver.dart';
 import 'package:firebase_database_rest/src/database/store.dart';
 import 'package:firebase_database_rest/src/database/store_helpers/store_transaction.dart';
 import 'package:firebase_database_rest/src/database/transaction.dart';
-import 'package:mockito/mockito.dart';
+import 'package:mocktail/mocktail.dart';
 import 'package:test/test.dart';
 
-class MockFirebaseStore extends Mock implements FirebaseStore<int> {
-  @override
-  Future<int?> write(
-    String? key,
-    int? data, {
-    bool? silent = false,
-    String? eTag,
-    ETagReceiver? eTagReceiver,
-  }) =>
-      super.noSuchMethod(
-        Invocation.method(
-          #write,
-          [key, data],
-          {
-            #silent: silent,
-            #eTag: eTag,
-            #eTagReceiver: eTagReceiver,
-          },
-        ),
-        returnValue: Future<int?>.value(),
-        returnValueForMissingStub: Future<int?>.value(),
-      ) as Future<int?>;
-
-  @override
-  Future<void> delete(
-    String? key, {
-    String? eTag,
-    ETagReceiver? eTagReceiver,
-  }) =>
-      super.noSuchMethod(
-        Invocation.method(
-          #delete,
-          [key],
-          {
-            #eTag: eTag,
-            #eTagReceiver: eTagReceiver,
-          },
-        ),
-        returnValue: Future<void>.value(),
-        returnValueForMissingStub: Future<void>.value(),
-      ) as Future<void>;
-}
+class MockFirebaseStore extends Mock implements FirebaseStore<int> {}
 
 // ignore: avoid_implementing_value_types
 class FakeETagReceiver extends Fake implements ETagReceiver {}
@@ -81,36 +40,45 @@ void main() {
   });
 
   group('commitUpdate', () {
+    setUp(() {
+      when(() => mockFirebaseStore.write(
+            any(),
+            any(),
+            eTag: any(named: 'eTag'),
+            eTagReceiver: any(named: 'eTagReceiver'),
+          )).thenAnswer((i) async => 0);
+    });
+
     test('calls store.write', () async {
       await sut.commitUpdate(13);
 
-      verify(mockFirebaseStore.write(
-        key,
-        13,
-        eTag: eTag,
-        eTagReceiver: fakeETagReceiver,
-      ));
+      verify(() => mockFirebaseStore.write(
+            key,
+            13,
+            eTag: eTag,
+            eTagReceiver: fakeETagReceiver,
+          ));
     });
 
     test('forwards store.write result', () async {
-      when(mockFirebaseStore.write(
-        any,
-        any,
-        eTag: anyNamed('eTag'),
-        eTagReceiver: anyNamed('eTagReceiver'),
-      )).thenAnswer((i) async => 31);
+      when(() => mockFirebaseStore.write(
+            any(),
+            any(),
+            eTag: any(named: 'eTag'),
+            eTagReceiver: any(named: 'eTagReceiver'),
+          )).thenAnswer((i) async => 31);
 
       final res = await sut.commitUpdate(13);
       expect(res, 31);
     });
 
     test('transforms etag mismatch exceptions', () async {
-      when(mockFirebaseStore.write(
-        any,
-        any,
-        eTag: anyNamed('eTag'),
-        eTagReceiver: anyNamed('eTagReceiver'),
-      )).thenThrow(
+      when(() => mockFirebaseStore.write(
+            any(),
+            any(),
+            eTag: any(named: 'eTag'),
+            eTagReceiver: any(named: 'eTagReceiver'),
+          )).thenThrow(
         const DbException(statusCode: ApiConstants.statusCodeETagMismatch),
       );
 
@@ -121,12 +89,12 @@ void main() {
     });
 
     test('forwards other exceptions', () async {
-      when(mockFirebaseStore.write(
-        any,
-        any,
-        eTag: anyNamed('eTag'),
-        eTagReceiver: anyNamed('eTagReceiver'),
-      )).thenThrow(Exception('test'));
+      when(() => mockFirebaseStore.write(
+            any(),
+            any(),
+            eTag: any(named: 'eTag'),
+            eTagReceiver: any(named: 'eTagReceiver'),
+          )).thenThrow(Exception('test'));
 
       expect(
         () => sut.commitUpdate(13),
@@ -138,29 +106,37 @@ void main() {
       );
     });
 
-    test('throws when trying to commit twice', () {
-      sut.commitUpdate(1);
+    test('throws when trying to commit twice', () async {
+      await sut.commitUpdate(1);
       expect(() => sut.commitUpdate(2), throwsA(isA<AlreadyComittedError>()));
     });
   });
 
   group('commitDelete', () {
+    setUp(() {
+      when(() => mockFirebaseStore.delete(
+            any(),
+            eTag: any(named: 'eTag'),
+            eTagReceiver: any(named: 'eTagReceiver'),
+          )).thenAnswer((i) => Future.value());
+    });
+
     test('calls store.delete', () async {
       await sut.commitDelete();
 
-      verify(mockFirebaseStore.delete(
-        key,
-        eTag: eTag,
-        eTagReceiver: fakeETagReceiver,
-      ));
+      verify(() => mockFirebaseStore.delete(
+            key,
+            eTag: eTag,
+            eTagReceiver: fakeETagReceiver,
+          ));
     });
 
     test('transforms etag mismatch exceptions', () async {
-      when(mockFirebaseStore.delete(
-        any,
-        eTag: anyNamed('eTag'),
-        eTagReceiver: anyNamed('eTagReceiver'),
-      )).thenThrow(
+      when(() => mockFirebaseStore.delete(
+            any(),
+            eTag: any(named: 'eTag'),
+            eTagReceiver: any(named: 'eTagReceiver'),
+          )).thenThrow(
         const DbException(statusCode: ApiConstants.statusCodeETagMismatch),
       );
 
@@ -171,11 +147,11 @@ void main() {
     });
 
     test('forwards other exceptions', () async {
-      when(mockFirebaseStore.delete(
-        any,
-        eTag: anyNamed('eTag'),
-        eTagReceiver: anyNamed('eTagReceiver'),
-      )).thenThrow(Exception('test'));
+      when(() => mockFirebaseStore.delete(
+            any(),
+            eTag: any(named: 'eTag'),
+            eTagReceiver: any(named: 'eTagReceiver'),
+          )).thenThrow(Exception('test'));
 
       expect(
         () => sut.commitDelete(),

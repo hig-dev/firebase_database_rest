@@ -3,24 +3,27 @@ import 'dart:convert';
 import 'package:firebase_database_rest/src/stream/event_source.dart';
 import 'package:firebase_database_rest/src/stream/server_sent_event.dart';
 import 'package:http/http.dart';
-import 'package:mockito/annotations.dart';
-import 'package:mockito/mockito.dart';
+import 'package:mocktail/mocktail.dart';
 import 'package:test/test.dart';
 
-import 'event_source_test.mocks.dart';
+class MockClient extends Mock implements Client {}
 
-@GenerateMocks([
-  Client,
-  StreamedResponse,
-])
+class MockStreamedResponse extends Mock implements StreamedResponse {}
+
+class FakeBaseRequest extends Fake implements BaseRequest {}
+
 void main() {
   final mockResponse = MockStreamedResponse();
+
+  setUpAll(() {
+    registerFallbackValue<BaseRequest>(FakeBaseRequest());
+  });
 
   setUp(() {
     reset(mockResponse);
 
-    when(mockResponse.statusCode).thenReturn(200);
-    when(mockResponse.headers).thenReturn({});
+    when(() => mockResponse.statusCode).thenReturn(200);
+    when(() => mockResponse.headers).thenReturn({});
   });
 
   group('EventSource', () {
@@ -31,7 +34,7 @@ void main() {
     });
 
     test('should create transformed event source stream', () async {
-      when(mockResponse.stream).thenAnswer((i) {
+      when(() => mockResponse.stream).thenAnswer((i) {
         const data = '''
 event: ev1
 data: data1
@@ -56,7 +59,7 @@ data: data2
     setUp(() {
       reset(mockClient);
 
-      when(mockClient.send(any)).thenAnswer((i) async => mockResponse);
+      when(() => mockClient.send(any())).thenAnswer((i) async => mockResponse);
     });
 
     test('calls send on client with parameters', () async {
@@ -71,7 +74,7 @@ data: data2
       );
 
       final request = verify(
-        mockClient.send(captureAny),
+        () => mockClient.send(captureAny()),
       ).captured.single as Request;
       expect(request.method, 'GET');
       expect(request.url, url);
@@ -89,7 +92,7 @@ data: data2
       await mockClient.stream(Uri(), lastEventId: '42');
 
       final request = verify(
-        mockClient.send(captureAny),
+        () => mockClient.send(captureAny()),
       ).captured.single as Request;
       expect(request.headers, const {
         'Accept': 'text/event-stream',
@@ -106,12 +109,12 @@ data: data2
     });
 
     test('throws ClientStreamException on failure status code', () async {
-      when(mockResponse.statusCode).thenReturn(400);
-      when(mockResponse.request).thenReturn(null);
-      when(mockResponse.isRedirect).thenReturn(false);
-      when(mockResponse.persistentConnection).thenReturn(false);
-      when(mockResponse.reasonPhrase).thenReturn(null);
-      when(mockResponse.stream)
+      when(() => mockResponse.statusCode).thenReturn(400);
+      when(() => mockResponse.request).thenReturn(null);
+      when(() => mockResponse.isRedirect).thenReturn(false);
+      when(() => mockResponse.persistentConnection).thenReturn(false);
+      when(() => mockResponse.reasonPhrase).thenReturn(null);
+      when(() => mockResponse.stream)
           .thenAnswer((i) => const ByteStream(Stream.empty()));
 
       expect(

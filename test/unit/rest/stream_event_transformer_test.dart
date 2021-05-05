@@ -6,19 +6,14 @@ import 'package:firebase_database_rest/src/rest/models/stream_event.dart';
 import 'package:firebase_database_rest/src/rest/models/unknown_stream_event_error.dart';
 import 'package:firebase_database_rest/src/rest/stream_event_transformer.dart';
 import 'package:firebase_database_rest/src/stream/server_sent_event.dart';
-import 'package:mockito/annotations.dart';
-import 'package:mockito/mockito.dart';
+import 'package:mocktail/mocktail.dart';
 import 'package:test/test.dart';
 import 'package:tuple/tuple.dart';
 
 import '../../test_data.dart';
-import 'stream_event_transformer_test.mocks.dart';
 
-abstract class StreamEventSink extends EventSink<StreamEvent> {}
+class MockStreamEventSink extends Mock implements EventSink<StreamEvent> {}
 
-@GenerateMocks([], customMocks: [
-  MockSpec<StreamEventSink>(returnNullOnMissingStub: true),
-])
 void main() {
   group('StreamEventTransformerSink', () {
     final mockStreamEventSink = MockStreamEventSink();
@@ -71,7 +66,7 @@ void main() {
         (fixture) {
           sut.add(fixture.item1);
           if (fixture.item2 != null) {
-            verify(mockStreamEventSink.add(fixture.item2));
+            verify(() => mockStreamEventSink.add(fixture.item2!));
             verifyNoMoreInteractions(mockStreamEventSink);
           } else {
             verifyZeroInteractions(mockStreamEventSink);
@@ -82,10 +77,10 @@ void main() {
       test('maps cancel event to DbException', () {
         sut.add(const ServerSentEvent(event: 'cancel', data: 'error message'));
 
-        verify(mockStreamEventSink.addError(const DbException(
-          statusCode: ApiConstants.eventStreamCanceled,
-          error: 'error message',
-        )));
+        verify(() => mockStreamEventSink.addError(const DbException(
+              statusCode: ApiConstants.eventStreamCanceled,
+              error: 'error message',
+            )));
         verifyNoMoreInteractions(mockStreamEventSink);
       });
 
@@ -97,10 +92,14 @@ void main() {
         );
         sut.add(event);
 
-        verify(mockStreamEventSink.addError(argThat(predicate((e) {
-          final err = e! as UnknownStreamEventError;
-          return err.event == event;
-        }))));
+        verify(
+          () => mockStreamEventSink.addError(
+            any(that: predicate((e) {
+              final err = e! as UnknownStreamEventError;
+              return err.event == event;
+            })),
+          ),
+        );
         verifyNoMoreInteractions(mockStreamEventSink);
       });
     });
@@ -111,13 +110,13 @@ void main() {
 
       sut.addError(error, trace);
 
-      verify(mockStreamEventSink.addError(error, trace));
+      verify(() => mockStreamEventSink.addError(error, trace));
     });
 
     test('close forwards close event', () {
       sut.close();
 
-      verify(mockStreamEventSink.close());
+      verify(() => mockStreamEventSink.close());
     });
   });
 

@@ -5,13 +5,11 @@ import 'package:firebase_database_rest/src/database/store_event.dart';
 import 'package:firebase_database_rest/src/database/store_helpers/store_event_transformer.dart';
 import 'package:firebase_database_rest/src/rest/models/stream_event.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
-import 'package:mockito/annotations.dart';
-import 'package:mockito/mockito.dart';
+import 'package:mocktail/mocktail.dart';
 import 'package:test/test.dart';
 import 'package:tuple/tuple.dart';
 
 import '../../../test_data.dart';
-import 'store_event_transformer_test.mocks.dart';
 
 part 'store_event_transformer_test.freezed.dart';
 part 'store_event_transformer_test.g.dart';
@@ -38,11 +36,9 @@ class TestModelPatchSet
   TestModel apply(TestModel value) => throw UnimplementedError();
 }
 
-abstract class StoreEventSink extends EventSink<StoreEvent<TestModel>> {}
+class MockStoreEventSink extends Mock
+    implements EventSink<StoreEvent<TestModel>> {}
 
-@GenerateMocks([], customMocks: [
-  MockSpec<StoreEventSink>(returnNullOnMissingStub: true),
-])
 void main() {
   group('StoreEventTransformerSink', () {
     final mockStoreEventSink = MockStoreEventSink();
@@ -132,7 +128,7 @@ void main() {
         ],
         (fixture) {
           sut.add(fixture.item1);
-          verify(mockStoreEventSink.add(fixture.item2));
+          verify(() => mockStoreEventSink.add(fixture.item2));
           verifyNoMoreInteractions(mockStoreEventSink);
         },
       );
@@ -140,7 +136,8 @@ void main() {
       test('maps auth revoked to error', () {
         sut.add(const StreamEvent.authRevoked());
         verify(
-          mockStoreEventSink.addError(argThat(isA<AuthRevokedException>())),
+          () => mockStoreEventSink
+              .addError(any(that: isA<AuthRevokedException>())),
         );
         verifyNoMoreInteractions(mockStoreEventSink);
       });
@@ -152,13 +149,13 @@ void main() {
 
       sut.addError(error, trace);
 
-      verify(mockStoreEventSink.addError(error, trace));
+      verify(() => mockStoreEventSink.addError(error, trace));
     });
 
     test('close forwards close event', () {
       sut.close();
 
-      verify(mockStoreEventSink.close());
+      verify(() => mockStoreEventSink.close());
     });
   });
 

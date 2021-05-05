@@ -2,20 +2,19 @@ import 'dart:async';
 
 import 'package:firebase_database_rest/src/stream/event_stream_decoder.dart';
 import 'package:firebase_database_rest/src/stream/server_sent_event.dart';
-import 'package:mockito/annotations.dart';
-import 'package:mockito/mockito.dart';
+import 'package:mocktail/mocktail.dart';
 import 'package:test/test.dart';
 import 'package:tuple/tuple.dart';
 
 import '../../test_data.dart';
-import 'event_stream_decoder_test.mocks.dart';
 
-abstract class SSESink extends EventSink<ServerSentEvent> {}
+class MockSSESink extends Mock implements EventSink<ServerSentEvent> {}
 
-@GenerateMocks([], customMocks: [
-  MockSpec<SSESink>(returnNullOnMissingStub: true),
-])
 void main() {
+  setUpAll(() {
+    registerFallbackValue(const ServerSentEvent(data: ''));
+  });
+
   group('EventStreamDecoderSink', () {
     final mockSSESink = MockSSESink();
 
@@ -122,7 +121,7 @@ void main() {
           sut.add(''); // complete event
 
           if (fixture.item2 != null) {
-            verify(mockSSESink.add(fixture.item2));
+            verify(() => mockSSESink.add(fixture.item2!));
             verifyNoMoreInteractions(mockSSESink);
           } else {
             verifyZeroInteractions(mockSSESink);
@@ -140,10 +139,12 @@ void main() {
           ..add('');
 
         verify(
-          mockSSESink.add(const ServerSentEvent(data: 'd1\nd2', event: 'e1')),
+          () => mockSSESink
+              .add(const ServerSentEvent(data: 'd1\nd2', event: 'e1')),
         );
         verify(
-          mockSSESink.add(const ServerSentEvent(data: 'd3', event: 'message')),
+          () => mockSSESink
+              .add(const ServerSentEvent(data: 'd3', event: 'message')),
         );
       });
 
@@ -159,15 +160,15 @@ void main() {
           ..add('');
 
         verify(
-          mockSSESink
+          () => mockSSESink
               .add(const ServerSentEvent(data: 'd1', lastEventId: 'id1')),
         );
         verify(
-          mockSSESink
+          () => mockSSESink
               .add(const ServerSentEvent(data: 'd2', lastEventId: 'id1')),
         );
         verify(
-          mockSSESink.add(const ServerSentEvent(data: 'd3')),
+          () => mockSSESink.add(const ServerSentEvent(data: 'd3')),
         );
       });
     });
@@ -178,14 +179,14 @@ void main() {
 
       sut.addError(error, trace);
 
-      verify(mockSSESink.addError(error, trace));
+      verify(() => mockSSESink.addError(error, trace));
     });
 
     group('close', () {
       test('forwards close event', () {
         sut.close();
 
-        verify(mockSSESink.close());
+        verify(() => mockSSESink.close());
       });
 
       test('does not complete partial events', () {
@@ -193,7 +194,7 @@ void main() {
           ..add('data: d1')
           ..close();
 
-        verifyNever(mockSSESink.add(any));
+        verifyNever(() => mockSSESink.add(any()));
       });
     });
   });

@@ -5,13 +5,11 @@ import 'package:firebase_database_rest/src/database/store_event.dart';
 import 'package:firebase_database_rest/src/database/store_helpers/store_value_event_transformer.dart';
 import 'package:firebase_database_rest/src/rest/models/stream_event.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
-import 'package:mockito/annotations.dart';
-import 'package:mockito/mockito.dart';
+import 'package:mocktail/mocktail.dart';
 import 'package:test/test.dart';
 import 'package:tuple/tuple.dart';
 
 import '../../../test_data.dart';
-import 'store_value_event_transformer_test.mocks.dart';
 
 part 'store_value_event_transformer_test.freezed.dart';
 part 'store_value_event_transformer_test.g.dart';
@@ -41,11 +39,9 @@ class TestModelPatchSet
       );
 }
 
-abstract class ValueEventSink extends EventSink<ValueEvent<TestModel>> {}
+class MockValueEventSink extends Mock
+    implements EventSink<ValueEvent<TestModel>> {}
 
-@GenerateMocks([], customMocks: [
-  MockSpec<ValueEventSink>(returnNullOnMissingStub: true),
-])
 void main() {
   group('StoreValueEventTransformerSink', () {
     final mockValueEventSink = MockValueEventSink();
@@ -104,7 +100,7 @@ void main() {
           }
 
           sut.add(fixture.item1);
-          verify(mockValueEventSink.add(fixture.item2));
+          verify(() => mockValueEventSink.add(fixture.item2));
           verifyNoMoreInteractions(mockValueEventSink);
         },
       );
@@ -112,7 +108,8 @@ void main() {
       test('maps auth revoked to error', () {
         sut.add(const StreamEvent.authRevoked());
         verify(
-          mockValueEventSink.addError(argThat(isA<AuthRevokedException>())),
+          () => mockValueEventSink
+              .addError(any(that: isA<AuthRevokedException>())),
         );
         verifyNoMoreInteractions(mockValueEventSink);
       });
@@ -124,13 +121,13 @@ void main() {
 
       sut.addError(error, trace);
 
-      verify(mockValueEventSink.addError(error, trace));
+      verify(() => mockValueEventSink.addError(error, trace));
     });
 
     test('close forwards close event', () {
       sut.close();
 
-      verify(mockValueEventSink.close());
+      verify(() => mockValueEventSink.close());
     });
   });
 

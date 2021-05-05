@@ -10,18 +10,13 @@ mixin MapTransform<T> {
   Map<String, T> mapTransform(
     dynamic data,
     DataFromJsonCallback<T> dataFromJson,
-  ) =>
-      Map.fromEntries(
-        (data as Map<String, dynamic>?)
-                ?.entries
-                .where((entry) => entry.value != null)
-                .map(
-                  (entry) => MapEntry(
-                    entry.key,
-                    dataFromJson(entry.value),
-                  ),
-                )
-                .cast() ??
-            const {},
-      );
+  ) {
+    final transformedMap = <String, T>{};
+    (data as Map<String, dynamic>?)?.forEach((key, dynamic value) {
+      if (value != null) {
+        transformedMap[key] = dataFromJson(value);
+      }
+    });
+    return transformedMap;
+  }
 }

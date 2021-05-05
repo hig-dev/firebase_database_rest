@@ -8,11 +8,8 @@ import 'package:firebase_database_rest/src/rest/models/db_response.dart';
 import 'package:firebase_database_rest/src/rest/models/stream_event.dart';
 import 'package:firebase_database_rest/src/rest/rest_api.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
-import 'package:mockito/annotations.dart';
-import 'package:mockito/mockito.dart';
+import 'package:mocktail/mocktail.dart';
 import 'package:test/test.dart';
-
-import 'store_test.mocks.dart';
 
 part 'store_test.freezed.dart';
 part 'store_test.g.dart';
@@ -25,19 +22,9 @@ class TestModel with _$TestModel {
       _$TestModelFromJson(json);
 }
 
-class MockParentStore extends Mock implements FirebaseStore<dynamic> {
-  @override
-  RestApi get restApi => super.noSuchMethod(
-        Invocation.getter(#restApi),
-        returnValue: MockRestApi(),
-      ) as RestApi;
+class MockRestApi extends Mock implements RestApi {}
 
-  @override
-  List<String> get subPaths => super.noSuchMethod(
-        Invocation.getter(#subPaths),
-        returnValue: const <String>[],
-      ) as List<String>;
-}
+class MockParentStore extends Mock implements FirebaseStore<dynamic> {}
 
 class ConstructorTestStore extends FirebaseStore<int> {
   ConstructorTestStore({
@@ -72,57 +59,54 @@ class ConstructorTestStore extends FirebaseStore<int> {
   }
 }
 
-@GenerateMocks([
-  RestApi,
-])
 void main() {
   final mockRestApi = MockRestApi();
 
-  PostExpectation<Future<DbResponse>> _whenGet() => when(mockRestApi.get(
-        path: anyNamed('path'),
-        printMode: anyNamed('printMode'),
-        formatMode: anyNamed('formatMode'),
-        shallow: anyNamed('shallow'),
-        filter: anyNamed('filter'),
-        eTag: anyNamed('eTag'),
+  When<Future<DbResponse>> _whenGet() => when(() => mockRestApi.get(
+        path: any(named: 'path'),
+        printMode: any(named: 'printMode'),
+        formatMode: any(named: 'formatMode'),
+        shallow: any(named: 'shallow'),
+        filter: any(named: 'filter'),
+        eTag: any(named: 'eTag'),
       ));
 
-  PostExpectation<Future<DbResponse>> _whenPut() => when(mockRestApi.put(
-        any,
-        path: anyNamed('path'),
-        printMode: anyNamed('printMode'),
-        eTag: anyNamed('eTag'),
-        ifMatch: anyNamed('ifMatch'),
+  When<Future<DbResponse>> _whenPut() => when(() => mockRestApi.put(
+        any<dynamic>(),
+        path: any(named: 'path'),
+        printMode: any(named: 'printMode'),
+        eTag: any(named: 'eTag'),
+        ifMatch: any(named: 'ifMatch'),
       ));
 
-  PostExpectation<Future<DbResponse>> _whenPost() => when(mockRestApi.post(
-        any,
-        path: anyNamed('path'),
-        printMode: anyNamed('printMode'),
-        eTag: anyNamed('eTag'),
+  When<Future<DbResponse>> _whenPost() => when(() => mockRestApi.post(
+        any<dynamic>(),
+        path: any(named: 'path'),
+        printMode: any(named: 'printMode'),
+        eTag: any(named: 'eTag'),
       ));
 
-  PostExpectation<Future<DbResponse>> _whenPatch() => when(mockRestApi.patch(
-        any,
-        path: anyNamed('path'),
-        printMode: anyNamed('printMode'),
+  When<Future<DbResponse>> _whenPatch() => when(() => mockRestApi.patch(
+        any(),
+        path: any(named: 'path'),
+        printMode: any(named: 'printMode'),
       ));
 
-  PostExpectation<Future<DbResponse>> _whenDelete() => when(mockRestApi.delete(
-        path: anyNamed('path'),
-        printMode: anyNamed('printMode'),
-        eTag: anyNamed('eTag'),
-        ifMatch: anyNamed('ifMatch'),
+  When<Future<DbResponse>> _whenDelete() => when(() => mockRestApi.delete(
+        path: any(named: 'path'),
+        printMode: any(named: 'printMode'),
+        eTag: any(named: 'eTag'),
+        ifMatch: any(named: 'ifMatch'),
       ));
 
-  PostExpectation<Future<Stream<StreamEvent>>> _whenStream() =>
-      when(mockRestApi.stream(
-        path: anyNamed('path'),
-        printMode: anyNamed('printMode'),
-        formatMode: anyNamed('formatMode'),
-        shallow: anyNamed('shallow'),
-        filter: anyNamed('filter'),
-      ));
+  When<Future<Stream<StreamEvent>>> _whenStream() =>
+      when(() => mockRestApi.stream(
+            path: any(named: 'path'),
+            printMode: any(named: 'printMode'),
+            formatMode: any(named: 'formatMode'),
+            shallow: any(named: 'shallow'),
+            filter: any(named: 'filter'),
+          ));
 
   setUp(() {
     reset(mockRestApi);
@@ -136,8 +120,8 @@ void main() {
     setUp(() {
       reset(mockParentStore);
 
-      when(mockParentStore.restApi).thenReturn(mockRestApi);
-      when(mockParentStore.subPaths).thenReturn(['base', 'path']);
+      when(() => mockParentStore.restApi).thenReturn(mockRestApi);
+      when(() => mockParentStore.subPaths).thenReturn(['base', 'path']);
     });
 
     test('default constructor initializes members', () {
@@ -236,10 +220,10 @@ void main() {
         final result = await sut.keys();
 
         expect(result, isEmpty);
-        verify(mockRestApi.get(
-          path: path,
-          shallow: true,
-        ));
+        verify(() => mockRestApi.get(
+              path: path,
+              shallow: true,
+            ));
       });
 
       test('returns json keys as list', () async {
@@ -267,11 +251,11 @@ void main() {
         final result = await sut.keys(eTagReceiver: ETagReceiver());
 
         expect(result, isEmpty);
-        verify(mockRestApi.get(
-          path: path,
-          shallow: false,
-          eTag: true,
-        ));
+        verify(() => mockRestApi.get(
+              path: path,
+              shallow: false,
+              eTag: true,
+            ));
       });
 
       test('sets ETag on receiver', () async {
@@ -292,9 +276,9 @@ void main() {
         final result = await sut.all();
 
         expect(result, isEmpty);
-        verify(mockRestApi.get(
-          path: path,
-        ));
+        verify(() => mockRestApi.get(
+              path: path,
+            ));
       });
 
       test('returns json data as map', () async {
@@ -321,10 +305,10 @@ void main() {
         final result = await sut.all(eTagReceiver: ETagReceiver());
 
         expect(result, isEmpty);
-        verify(mockRestApi.get(
-          path: path,
-          eTag: true,
-        ));
+        verify(() => mockRestApi.get(
+              path: path,
+              eTag: true,
+            ));
       });
 
       test('sets ETag on receiver', () async {
@@ -347,9 +331,9 @@ void main() {
         final result = await sut.read(key);
 
         expect(result, isNull);
-        verify(mockRestApi.get(
-          path: '$path/$key',
-        ));
+        verify(() => mockRestApi.get(
+              path: '$path/$key',
+            ));
       });
 
       test('returns parsed data', () async {
@@ -368,10 +352,10 @@ void main() {
         final result = await sut.read(key, eTagReceiver: ETagReceiver());
 
         expect(result, isNull);
-        verify(mockRestApi.get(
-          path: '$path/$key',
-          eTag: true,
-        ));
+        verify(() => mockRestApi.get(
+              path: '$path/$key',
+              eTag: true,
+            ));
       });
 
       test('sets ETag on receiver', () async {
@@ -395,10 +379,10 @@ void main() {
         final result = await sut.write(key, data);
 
         expect(result, isNull);
-        verify(mockRestApi.put(
-          const {'id': 13, 'data': 'W'},
-          path: '$path/$key',
-        ));
+        verify(() => mockRestApi.put(
+              const {'id': 13, 'data': 'W'},
+              path: '$path/$key',
+            ));
       });
 
       test('returns parsed data', () async {
@@ -418,11 +402,11 @@ void main() {
         final result = await sut.write(key, data, silent: true);
 
         expect(result, isNull);
-        verify(mockRestApi.put(
-          const {'id': 13, 'data': 'W'},
-          path: '$path/$key',
-          printMode: PrintMode.silent,
-        ));
+        verify(() => mockRestApi.put(
+              const {'id': 13, 'data': 'W'},
+              path: '$path/$key',
+              printMode: PrintMode.silent,
+            ));
       });
 
       test('requests eTag with etag receiver set', () async {
@@ -432,11 +416,11 @@ void main() {
         final result = await sut.write(key, data, eTagReceiver: ETagReceiver());
 
         expect(result, isNull);
-        verify(mockRestApi.put(
-          const {'id': 13, 'data': 'W'},
-          path: '$path/$key',
-          eTag: true,
-        ));
+        verify(() => mockRestApi.put(
+              const {'id': 13, 'data': 'W'},
+              path: '$path/$key',
+              eTag: true,
+            ));
       });
 
       test('sets ETag on receiver', () async {
@@ -467,11 +451,11 @@ void main() {
         final result = await sut.write(key, data, eTag: eTag);
 
         expect(result, isNull);
-        verify(mockRestApi.put(
-          const {'id': 13, 'data': 'W'},
-          path: '$path/$key',
-          ifMatch: eTag,
-        ));
+        verify(() => mockRestApi.put(
+              const {'id': 13, 'data': 'W'},
+              path: '$path/$key',
+              ifMatch: eTag,
+            ));
       });
     });
 
@@ -482,10 +466,10 @@ void main() {
         final result = await sut.create(data);
 
         expect(result, isEmpty);
-        verify(mockRestApi.post(
-          const {'id': 24, 'data': 'D'},
-          path: path,
-        ));
+        verify(() => mockRestApi.post(
+              const {'id': 24, 'data': 'D'},
+              path: path,
+            ));
       });
 
       test('returns parsed data', () async {
@@ -504,11 +488,11 @@ void main() {
         final result = await sut.create(data, eTagReceiver: ETagReceiver());
 
         expect(result, isEmpty);
-        verify(mockRestApi.post(
-          const {'id': 24, 'data': 'D'},
-          path: path,
-          eTag: true,
-        ));
+        verify(() => mockRestApi.post(
+              const {'id': 24, 'data': 'D'},
+              path: path,
+              eTag: true,
+            ));
       });
 
       test('sets ETag on receiver', () async {
@@ -536,11 +520,11 @@ void main() {
         final result = await sut.update(key, updateFields);
 
         expect(result, isNull);
-        verify(mockRestApi.patch(
-          updateFields,
-          path: '$path/$key',
-          printMode: PrintMode.silent,
-        ));
+        verify(() => mockRestApi.patch(
+              updateFields,
+              path: '$path/$key',
+              printMode: PrintMode.silent,
+            ));
       });
 
       test('patches data with returned message', () async {
@@ -554,10 +538,10 @@ void main() {
         );
 
         expect(result, const TestModel(42, 'newData'));
-        verify(mockRestApi.patch(
-          updateFields,
-          path: '$path/$key',
-        ));
+        verify(() => mockRestApi.patch(
+              updateFields,
+              path: '$path/$key',
+            ));
       });
     });
 
@@ -567,10 +551,10 @@ void main() {
       test('calls api.delete', () async {
         await sut.delete(key);
 
-        verify(mockRestApi.delete(
-          path: '$path/$key',
-          printMode: PrintMode.silent,
-        ));
+        verify(() => mockRestApi.delete(
+              path: '$path/$key',
+              printMode: PrintMode.silent,
+            ));
       });
 
       test('requests eTag with etag receiver set', () async {
@@ -579,11 +563,11 @@ void main() {
         );
         await sut.delete(key, eTagReceiver: ETagReceiver());
 
-        verify(mockRestApi.delete(
-          path: '$path/$key',
-          eTag: true,
-          printMode: PrintMode.silent,
-        ));
+        verify(() => mockRestApi.delete(
+              path: '$path/$key',
+              eTag: true,
+              printMode: PrintMode.silent,
+            ));
       });
 
       test('sets ETag on receiver', () async {
@@ -601,10 +585,10 @@ void main() {
         const eTag = 'eTag';
         await sut.delete(key, eTag: eTag);
 
-        verify(mockRestApi.delete(
-          path: '$path/$key',
-          ifMatch: eTag,
-        ));
+        verify(() => mockRestApi.delete(
+              path: '$path/$key',
+              ifMatch: eTag,
+            ));
       });
     });
 
@@ -615,10 +599,10 @@ void main() {
         final result = await sut.query(filter);
 
         expect(result, isEmpty);
-        verify(mockRestApi.get(
-          path: path,
-          filter: filter,
-        ));
+        verify(() => mockRestApi.get(
+              path: path,
+              filter: filter,
+            ));
       });
 
       test('returns json data as map', () async {
@@ -646,10 +630,10 @@ void main() {
         final result = await sut.queryKeys(filter);
 
         expect(result, isEmpty);
-        verify(mockRestApi.get(
-          path: path,
-          filter: filter,
-        ));
+        verify(() => mockRestApi.get(
+              path: path,
+              filter: filter,
+            ));
       });
 
       test('returns json keys as list', () async {
@@ -683,10 +667,10 @@ void main() {
 
         expect(result, isNotNull);
         expect(result.value, isNull);
-        verify(mockRestApi.get(
-          path: '$path/$key',
-          eTag: true,
-        ));
+        verify(() => mockRestApi.get(
+              path: '$path/$key',
+              eTag: true,
+            ));
       });
 
       test('returns correctly initialized transaction', () async {
@@ -716,11 +700,11 @@ void main() {
         expect(result.eTag, 'TAG1');
 
         await result.commitDelete();
-        verify(mockRestApi.delete(
-          path: '$path/$key',
-          ifMatch: 'TAG1',
-          eTag: true,
-        ));
+        verify(() => mockRestApi.delete(
+              path: '$path/$key',
+              ifMatch: 'TAG1',
+              eTag: true,
+            ));
         expect(receiver.eTag, 'TAG2');
       });
     });
@@ -730,9 +714,9 @@ void main() {
         final result = await sut.streamAll();
 
         expect(result, neverEmits(anything));
-        verify(mockRestApi.stream(
-          path: path,
-        ));
+        verify(() => mockRestApi.stream(
+              path: path,
+            ));
       });
 
       test('applies correct stream transformer', () async {
@@ -753,10 +737,10 @@ void main() {
         final result = await sut.streamKeys();
 
         expect(result, neverEmits(anything));
-        verify(mockRestApi.stream(
-          path: path,
-          shallow: true,
-        ));
+        verify(() => mockRestApi.stream(
+              path: path,
+              shallow: true,
+            ));
       });
 
       test('applies correct stream transformer', () async {
@@ -779,9 +763,9 @@ void main() {
         final result = await sut.streamEntry(key);
 
         expect(result, neverEmits(anything));
-        verify(mockRestApi.stream(
-          path: '$path/$key',
-        ));
+        verify(() => mockRestApi.stream(
+              path: '$path/$key',
+            ));
       });
 
       test('applies correct stream transformer', () async {
@@ -804,10 +788,10 @@ void main() {
         final result = await sut.streamQuery(filter);
 
         expect(result, neverEmits(anything));
-        verify(mockRestApi.stream(
-          path: path,
-          filter: filter,
-        ));
+        verify(() => mockRestApi.stream(
+              path: path,
+              filter: filter,
+            ));
       });
 
       test('applies correct stream transformer', () async {
@@ -830,10 +814,10 @@ void main() {
         final result = await sut.streamQueryKeys(filter);
 
         expect(result, neverEmits(anything));
-        verify(mockRestApi.stream(
-          path: path,
-          filter: filter,
-        ));
+        verify(() => mockRestApi.stream(
+              path: path,
+              filter: filter,
+            ));
       });
 
       test('applies correct stream transformer', () async {
@@ -853,10 +837,10 @@ void main() {
       test('calls api.delete', () async {
         await sut.destroy();
 
-        verify(mockRestApi.delete(
-          path: path,
-          printMode: PrintMode.silent,
-        ));
+        verify(() => mockRestApi.delete(
+              path: path,
+              printMode: PrintMode.silent,
+            ));
       });
 
       test('requests eTag with etag receiver set', () async {
@@ -865,11 +849,11 @@ void main() {
         );
         await sut.destroy(eTagReceiver: ETagReceiver());
 
-        verify(mockRestApi.delete(
-          path: path,
-          eTag: true,
-          printMode: PrintMode.silent,
-        ));
+        verify(() => mockRestApi.delete(
+              path: path,
+              eTag: true,
+              printMode: PrintMode.silent,
+            ));
       });
 
       test('sets ETag on receiver', () async {
@@ -887,10 +871,10 @@ void main() {
         const eTag = 'eTag';
         await sut.destroy(eTag: eTag);
 
-        verify(mockRestApi.delete(
-          path: path,
-          ifMatch: eTag,
-        ));
+        verify(() => mockRestApi.delete(
+              path: path,
+              ifMatch: eTag,
+            ));
       });
     });
   });

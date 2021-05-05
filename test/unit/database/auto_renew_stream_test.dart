@@ -2,21 +2,17 @@ import 'dart:async';
 
 import 'package:firebase_database_rest/src/database/auth_revoked_exception.dart';
 import 'package:firebase_database_rest/src/database/auto_renew_stream.dart';
-import 'package:mockito/annotations.dart';
-import 'package:mockito/mockito.dart';
+import 'package:mocktail/mocktail.dart';
 import 'package:test/test.dart';
 
 import '../../stream_matcher_queue.dart';
-
-import 'auto_renew_stream_test.mocks.dart';
 
 abstract class Callable {
   Future<Stream<int>> call();
 }
 
-@GenerateMocks([
-  Callable,
-])
+class MockCallable extends Mock implements Callable {}
+
 void main() {
   final mockStreamFactory = MockCallable();
 
@@ -39,16 +35,16 @@ void main() {
   });
 
   test('creates stream and forwards events', () async {
-    when(mockStreamFactory.call())
+    when(() => mockStreamFactory.call())
         .thenAnswer((i) async => Stream.fromIterable([1, 2, 3, 4]));
 
     final stream = AutoRenewStream<int>(mockStreamFactory);
     expect(await stream.toList(), [1, 2, 3, 4]);
-    verify(mockStreamFactory.call()).called(1);
+    verify(() => mockStreamFactory.call()).called(1);
   });
 
   test('creates stream that can be canceled', () async {
-    when(mockStreamFactory.call()).thenAnswer(
+    when(() => mockStreamFactory.call()).thenAnswer(
       (i) async => Stream.fromFuture(
         Future.delayed(const Duration(milliseconds: 200), () => 42),
       ),
@@ -59,20 +55,20 @@ void main() {
     await Future<void>.delayed(const Duration(milliseconds: 100));
     await sub.cancel();
     await Future<void>.delayed(const Duration(milliseconds: 200));
-    verify(mockStreamFactory.call()).called(1);
+    verify(() => mockStreamFactory.call()).called(1);
   });
 
   test('creates stream and forwards exceptions', () async {
-    when(mockStreamFactory.call())
+    when(() => mockStreamFactory.call())
         .thenAnswer((i) async => Stream.fromFuture(Future.error(Exception())));
 
     final stream = AutoRenewStream<int>(mockStreamFactory);
     expect(() => stream.toList(), throwsA(isA<Exception>()));
-    verify(mockStreamFactory.call()).called(1);
+    verify(() => mockStreamFactory.call()).called(1);
   });
 
   test('creates stream and forwards exceptions, without canceling', () async {
-    when(mockStreamFactory.call()).thenAnswer(
+    when(() => mockStreamFactory.call()).thenAnswer(
       (i) async => Stream.fromFutures([
         Future.delayed(const Duration(milliseconds: 100), () => 1),
         Future.delayed(
@@ -101,7 +97,7 @@ void main() {
   });
 
   test('creates stream that can be paused and resumed', () async {
-    when(mockStreamFactory.call()).thenAnswer(
+    when(() => mockStreamFactory.call()).thenAnswer(
       (i) async => () async* {
         yield 1;
         yield 2;
@@ -130,28 +126,30 @@ void main() {
   });
 
   test('recreates stream on auth exception', () async {
-    when(mockStreamFactory.call()).thenAnswer((i) async => _authStream(4));
+    when(() => mockStreamFactory.call())
+        .thenAnswer((i) async => _authStream(4));
 
     final stream = AutoRenewStream<int>(mockStreamFactory);
     expect(await stream.toList(), [0, 1, 2, 3]);
-    verify(mockStreamFactory.call()).called(5);
+    verify(() => mockStreamFactory.call()).called(5);
   });
 
   test('fromStream: uses base stream and then renew', () async {
-    when(mockStreamFactory.call()).thenAnswer((i) async => _authStream(2));
+    when(() => mockStreamFactory.call())
+        .thenAnswer((i) async => _authStream(2));
 
     final stream = AutoRenewStream.fromStream(
       _singleAuthStream(const [7, 8, 9]),
       mockStreamFactory,
     );
     expect(await stream.toList(), [7, 8, 9, 0, 1]);
-    verify(mockStreamFactory.call()).called(3);
+    verify(() => mockStreamFactory.call()).called(3);
   });
 
   test(
     'can cancel while refreshing',
     () async {
-      when(mockStreamFactory.call()).thenAnswer(
+      when(() => mockStreamFactory.call()).thenAnswer(
         (i) async => Stream.fromFuture(
           Future.delayed(const Duration(milliseconds: 250), () => 42),
         ),
@@ -178,7 +176,7 @@ void main() {
   );
 
   test('can pause while refreshing', () async {
-    when(mockStreamFactory.call()).thenAnswer(
+    when(() => mockStreamFactory.call()).thenAnswer(
       (i) async => Stream.fromFuture(
         Future.delayed(const Duration(milliseconds: 250), () => 42),
       ),
