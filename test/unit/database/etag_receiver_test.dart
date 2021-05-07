@@ -29,4 +29,9 @@ void main() {
     expect(sut, isNot(sut3));
     expect(sut.hashCode, isNot(sut3.hashCode));
   });
+
+  test('toString prints eTag', () {
+    sut.eTag = 'e_tag';
+    expect(sut.toString(), 'ETag: e_tag');
+  });
 }

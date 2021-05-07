@@ -53,5 +53,10 @@ void main() {
         throwsA(isA<AssertionError>()),
       );
     },
+    onPlatform: <String, dynamic>{
+      'browser': [
+        Skip('Freezed asserts do not work in the browser yet'),
+      ]
+    },
   );
 }

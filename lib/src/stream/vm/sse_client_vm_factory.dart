@@ -7,7 +7,7 @@ import 'sse_client_vm.dart';
 /// @nodoc
 @internal
 abstract class SSEClientFactory {
-  const SSEClientFactory._();
+  const SSEClientFactory._(); // coverage:ignore-line
 
   /// @nodoc
   static SSEClient create(Client client) => SSEClientVM(client);

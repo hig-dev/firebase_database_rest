@@ -14,8 +14,10 @@ class _SSEExceptionVM implements SSEException {
 
   _SSEExceptionVM(this._response);
 
+  // coverage:ignore-start
   @override
   String toString() => _response.body;
+  // coverage:ignore-end
 }
 
 class _SSEStreamVM extends SSEStream {

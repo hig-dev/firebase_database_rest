@@ -9,7 +9,7 @@ import 'sse_client.dart';
 /// @nodoc
 @internal
 abstract class SSEClientFactory {
-  const SSEClientFactory._();
+  const SSEClientFactory._(); // coverage:ignore-line
 
   /// @nodoc
   static SSEClient create(Client _client) => throw UnimplementedError(

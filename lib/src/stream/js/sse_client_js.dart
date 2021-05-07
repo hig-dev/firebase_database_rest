@@ -1,12 +1,12 @@
 import 'dart:async';
 import 'dart:html';
 
-import 'package:firebase_database_rest/src/stream/sse_client_factory.dart';
 import 'package:http/http.dart';
 import 'package:meta/meta.dart';
 
 import '../server_sent_event.dart';
 import '../sse_client.dart';
+import '../sse_client_factory.dart';
 
 class _SSEExceptionJS implements SSEException {
   final Event _errorEvent;
@@ -34,7 +34,12 @@ class _SSEStreamControllerJS {
     onCancel: _onCancel,
   );
 
-  _SSEStreamControllerJS(this.url, this._eventSourceFactory);
+  // coverage:ignore-start
+  _SSEStreamControllerJS(
+    this.url,
+    this._eventSourceFactory,
+  );
+  // coverage:ignore-end
 
   Stream<ServerSentEvent> get stream => _controller.stream;
 
@@ -95,7 +100,7 @@ class _SSEStreamControllerJS {
 class _SSEStreamJS extends SSEStream {
   final _SSEStreamControllerJS _sseStreamController;
 
-  _SSEStreamJS(this._sseStreamController);
+  _SSEStreamJS(this._sseStreamController); // coverage:ignore-line
 
   @override
   StreamSubscription<ServerSentEvent> listen(
