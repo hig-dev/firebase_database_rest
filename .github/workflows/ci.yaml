@@ -13,38 +13,47 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os:
-          - ubuntu-latest
-          - windows-latest
-          - macos-latest
+        platform:
+          - linux
+          - windows
+          - macos
+          - web
+
+        include:
+          - platform: linux
+            os: ubuntu-latest
+            system: vm
+          - platform: windows
+            os: windows-latest
+            system: vm
+          - platform: macos
+            os: macos-latest
+            system: vm
+          - platform: web
+            os: ubuntu-latest
+            system: js
 
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: cedx/setup-dart@v2
+      - uses: dart-lang/setup-dart@v1
       - uses: actions/checkout@v2
       - run: make get
       - run: make build
       - run: make analyze
-      - run: make unit-test-coverage
-      - run: make integration-tests
+      - run: make unit-tests-${{ matrix.system }}-coverage
+      - run: make integration-tests-${{ matrix.system }}
         env:
           FIREBASE_ALL_TEST_LIMIT: 500
           FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
           FIREBASE_API_KEY: ${{ secrets.FIREBASE_API_KEY }}
       - uses: VeryGoodOpenSource/very_good_coverage@v1.1.1
         with:
-          min_coverage: 80
+          min_coverage: 95
           exclude: |
-            **/*.g.dart 
             **/*.freezed.dart 
-            **/auth_revoked_exception.dart 
-            **/db_exception.dart 
-            **/patch_on_null_error.dart 
-            **/post_response.dart 
-            **/store_event.dart 
-            **/stream_event.dart 
-            **/unknown_stream_event_error.dart
+            **/*.g.dart
       - run: make publish-dry
+
   release:
     runs-on: ubuntu-latest
     needs:
@@ -54,7 +63,7 @@ jobs:
       update: ${{ steps.version.outputs.update }}
       tag_name: ${{ steps.version.outputs.tag_name }}
     steps:
-      - uses: cedx/setup-dart@v2
+      - uses: dart-lang/setup-dart@v1
       - uses: actions/checkout@v2
       - uses: Skycoder42/action-dart-release@v1
         id: version
@@ -67,13 +76,14 @@ jobs:
           tag_name: v${{ steps.version.outputs.tag_name }}
           release_name: ${{ steps.version.outputs.release_name }}
           body_path: ${{ steps.version.outputs.body_path }}
+
   deploy:
     runs-on: ubuntu-latest
     needs:
       - release
     if: needs.release.outputs.update == 'true'
     steps:
-      - uses: cedx/setup-dart@v2
+      - uses: dart-lang/setup-dart@v1
       - uses: actions/checkout@v2
       - run: make get
       - run: make build
@@ -85,13 +95,14 @@ jobs:
       - name: clean up credentials
         if: always()
         run: shred -fzvu ~/.pub-cache/credentials.json
+
   doc:
     runs-on: ubuntu-latest
     needs:
       - release
     if: needs.release.outputs.update == 'true'
     steps:
-      - uses: cedx/setup-dart@v2
+      - uses: dart-lang/setup-dart@v1
       - uses: actions/checkout@v2
       - run: make get
       - run: make build

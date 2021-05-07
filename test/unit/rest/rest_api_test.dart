@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:firebase_database_rest/src/common/api_constants.dart';
 import 'package:firebase_database_rest/src/common/db_exception.dart';
@@ -9,22 +8,50 @@ import 'package:firebase_database_rest/src/rest/models/db_response.dart';
 import 'package:firebase_database_rest/src/rest/models/stream_event.dart';
 import 'package:firebase_database_rest/src/rest/models/unknown_stream_event_error.dart';
 import 'package:firebase_database_rest/src/rest/rest_api.dart';
+import 'package:firebase_database_rest/src/stream/server_sent_event.dart';
+import 'package:firebase_database_rest/src/stream/sse_client.dart';
 import 'package:http/http.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:test/test.dart' hide Timeout;
 
-class MockClient extends Mock implements Client {}
+class MockSSEClient extends Mock implements SSEClient {}
 
 class MockResponse extends Mock implements Response {}
 
-class MockStreamedResponse extends Mock implements StreamedResponse {}
-
 class FakeBaseRequest extends Mock implements BaseRequest {}
+
+class MockSSEStream extends Mock implements SSEStream {}
+
+class SutSSEStream extends SSEStream {
+  final MockSSEStream mock;
+
+  SutSSEStream(this.mock);
+
+  @override
+  void addEventType(String event) => mock.addEventType(event);
+
+  @override
+  bool removeEventType(String event) => mock.removeEventType(event);
+
+  @override
+  StreamSubscription<ServerSentEvent> listen(
+    void Function(ServerSentEvent event)? onData, {
+    Function? onError,
+    void Function()? onDone,
+    bool? cancelOnError,
+  }) =>
+      mock.listen(
+        onData,
+        onError: onError,
+        onDone: onDone,
+        cancelOnError: cancelOnError,
+      );
+}
 
 void main() {
   const databaseName = 'database';
   final mockResponse = MockResponse();
-  final mockClient = MockClient();
+  final mockClient = MockSSEClient();
 
   late RestApi sut;
 
@@ -49,6 +76,20 @@ void main() {
     );
 
     expect(sut.client, mockClient);
+    expect(sut.database, databaseName);
+    expect(sut.basePath, '');
+    expect(sut.idToken, null);
+    expect(sut.timeout, null);
+    expect(sut.writeSizeLimit, null);
+  });
+
+  test('constructor creates SSEClient from Client', () {
+    sut = RestApi(
+      client: Client(),
+      database: databaseName,
+    );
+
+    expect(sut.client, isA<SSEClient>());
     expect(sut.database, databaseName);
     expect(sut.basePath, '');
     expect(sut.idToken, null);
@@ -638,56 +679,40 @@ void main() {
     });
 
     group('stream', () {
-      void _verifyStream(
-        dynamic url, {
-        Map<String, String>? headers,
-      }) {
-        final captured = verify(() => mockClient.send(captureAny())).captured;
-        final request = captured.single as Request;
-        expect(request.method, 'GET');
-        expect(request.url, url);
-        expect(request.headers, headers);
-      }
+      final mockStream = MockSSEStream();
 
-      void _mockStream(
-        MockStreamedResponse response,
-        Iterable<String> elements,
-      ) {
-        when(() => response.stream).thenAnswer(
-          (i) => ByteStream(
-            Stream.fromIterable(elements).transform(utf8.encoder),
-          ),
-        );
-      }
+      late SutSSEStream sutStream;
 
-      final mockStreamedResponse = MockStreamedResponse();
+      void _mockListen(Stream<ServerSentEvent> data) => when(
+          () => mockStream.listen(
+                any(),
+                onError: any(named: 'onError'),
+                onDone: any(named: 'onDone'),
+                cancelOnError: any(named: 'cancelOnError'),
+              )).thenAnswer((i) => data.listen(
+            i.positionalArguments[0] as void Function(ServerSentEvent)?,
+            onError: i.namedArguments['onError'] as Function?,
+            onDone: i.namedArguments['onData'] as void Function()?,
+            cancelOnError: i.namedArguments['cancelOnError'] as bool?,
+          ));
 
       setUp(() {
-        reset(mockStreamedResponse);
+        reset(mockStream);
 
-        when(() => mockStreamedResponse.statusCode).thenReturn(200);
-        when(() => mockStreamedResponse.stream).thenAnswer(
-          (i) => const ByteStream(Stream.empty()),
-        );
-        when(() => mockStreamedResponse.headers).thenReturn(const {});
+        sutStream = SutSSEStream(mockStream);
 
-        when(() => mockClient.send(any()))
-            .thenAnswer((i) async => mockStreamedResponse);
+        when(() => mockClient.stream(any())).thenAnswer((i) async => sutStream);
       });
 
       test('calls client.stream with default parameters', () async {
         await sut.stream();
 
-        _verifyStream(
-          Uri.https(
+        verify(
+          () => mockClient.stream(Uri.https(
             'database.firebaseio.com',
             '.json',
             const <String, String>{},
-          ),
-          headers: const {
-            'Accept': 'text/event-stream',
-            'Cache-Control': 'no-cache',
-          },
+          )),
         );
       });
 
@@ -705,8 +730,8 @@ void main() {
           shallow: false,
         );
 
-        _verifyStream(
-          Uri.https(
+        verify(
+          () => mockClient.stream(Uri.https(
             'database.firebaseio.com',
             'stream/path.json',
             const <String, String>{
@@ -719,105 +744,94 @@ void main() {
               'orderBy': r'"$value"',
               'equalTo': '42',
             },
-          ),
-          headers: const {
-            'Accept': 'text/event-stream',
-            'Cache-Control': 'no-cache',
-          },
+          )),
         );
+      });
+
+      test('register event types on SSEStream', () async {
+        await sut.stream();
+
+        verify(() => mockStream.addEventType('put'));
+        verify(() => mockStream.addEventType('patch'));
+        verify(() => mockStream.addEventType('keep-alive'));
+        verify(() => mockStream.addEventType('cancel'));
+        verify(() => mockStream.addEventType('auth_revoked'));
+        verifyNever(() => mockStream.addEventType(any()));
       });
 
       test('returns stream events', () async {
-        _mockStream(mockStreamedResponse, const [
-          'event: put\n',
-          'data: {"path": "/a", "data": 42}\n',
-          '\n',
-          'event: keep-alive\n',
-          'data: null\n',
-          '\n',
-          'event: patch\n',
-          'data: {"path": "/b/c", "data": true}\n',
-          '\n',
-        ]);
+        _mockListen(Stream.fromIterable(const [
+          ServerSentEvent(event: 'put', data: '{"path": "/a", "data": 42}'),
+          ServerSentEvent(event: 'keep-alive', data: 'null'),
+          ServerSentEvent(
+            event: 'patch',
+            data: '{"path": "/b/c", "data": true}',
+          ),
+        ]));
 
         final stream = await sut.stream();
         expect(stream, isNotNull);
 
-        expect(await stream.toList(), const [
-          StreamEventPut(path: '/a', data: 42),
-          StreamEventPatch(path: '/b/c', data: true),
-        ]);
+        expect(
+          stream,
+          emitsInOrder(const <StreamEvent>[
+            StreamEventPut(path: '/a', data: 42),
+            StreamEventPatch(path: '/b/c', data: true),
+          ]),
+        );
       });
 
       test('throws DbException on error', () async {
-        _mockStream(
-          mockStreamedResponse,
-          const [
-            'event: put\n',
-            'data: {"path": "/a", "data": null}\n',
-            '\n',
-            'event: cancel\n',
-            'data: error\n',
-            '\n',
-            'event: put\n',
-            'data: {"path": "/b", "data": null}\n',
-            '\n',
-          ],
-        );
+        _mockListen(Stream.fromIterable(const [
+          ServerSentEvent(event: 'put', data: '{"path": "/a", "data": null}'),
+          ServerSentEvent(event: 'cancel', data: 'error'),
+          ServerSentEvent(event: 'put', data: '{"path": "/b", "data": null}'),
+        ]));
 
         final stream = await sut.stream();
-        final events = <StreamEvent>[];
-        final errors = <Object>[];
-        final completer = Completer<void>();
-        stream.listen(
-          events.add,
-          onError: errors.add,
-          onDone: completer.complete,
-          cancelOnError: false,
-        );
 
-        await completer.future;
-        expect(events, const [
-          StreamEventPut(path: '/a', data: null),
-          StreamEventPut(path: '/b', data: null),
-        ]);
-        expect(errors, const [
-          DbException(
-            statusCode: ApiConstants.eventStreamCanceled,
-            error: 'error',
-          ),
-        ]);
+        expect(
+          stream,
+          emitsInOrder(<dynamic>[
+            const StreamEventPut(path: '/a', data: null),
+            emitsError(const DbException(
+              statusCode: ApiConstants.eventStreamCanceled,
+              error: 'error',
+            )),
+            const StreamEventPut(path: '/b', data: null),
+          ]),
+        );
       });
 
       test('yields authRevoked if auth was revoked', () async {
-        _mockStream(mockStreamedResponse, const [
-          'event: put\n',
-          'data: {"path": "/a", "data": [1, 2, 3]}\n',
-          '\n',
-          'event: auth_revoked\n',
-          'data: null\n',
-          '\n',
-          'event: patch\n',
-          'data: {"path": "/b", "data": {"a": false}}\n',
-          '\n',
-        ]);
+        _mockListen(Stream.fromIterable(const [
+          ServerSentEvent(
+            event: 'put',
+            data: '{"path": "/a", "data": [1, 2, 3]}',
+          ),
+          ServerSentEvent(event: 'auth_revoked', data: 'null'),
+          ServerSentEvent(
+            event: 'patch',
+            data: '{"path": "/b", "data": {"a": false}}',
+          ),
+        ]));
 
         final stream = await sut.stream();
-        expect(stream, isNotNull);
 
-        expect(await stream.toList(), const [
-          StreamEventPut(path: '/a', data: [1, 2, 3]),
-          StreamEvent.authRevoked(),
-          StreamEventPatch(path: '/b', data: {'a': false}),
-        ]);
+        expect(
+          stream,
+          emitsInOrder(const <StreamEvent>[
+            StreamEventPut(path: '/a', data: [1, 2, 3]),
+            StreamEvent.authRevoked(),
+            StreamEventPatch(path: '/b', data: {'a': false}),
+          ]),
+        );
       });
 
       test('throws error on unknown event', () async {
-        _mockStream(mockStreamedResponse, const [
-          'event: __test_event\n',
-          'data: 42\n',
-          '\n',
-        ]);
+        _mockListen(Stream.value(
+          const ServerSentEvent(event: '__test_event', data: '42'),
+        ));
 
         final stream = await sut.stream();
         expect(stream, isNotNull);

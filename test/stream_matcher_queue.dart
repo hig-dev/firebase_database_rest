@@ -2,8 +2,7 @@ import 'dart:async';
 import 'dart:collection';
 
 import 'package:test/test.dart';
-// ignore: deprecated_member_use
-import 'package:test_api/src/frontend/async_matcher.dart';
+import 'package:test_api/src/expect/async_matcher.dart';
 
 enum _MatchType {
   data,

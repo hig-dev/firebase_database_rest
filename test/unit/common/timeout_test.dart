@@ -53,6 +53,5 @@ void main() {
         throwsA(isA<AssertionError>()),
       );
     },
-    skip: true,
   );
 }

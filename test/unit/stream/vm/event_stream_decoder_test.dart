@@ -1,12 +1,12 @@
 import 'dart:async';
 
-import 'package:firebase_database_rest/src/stream/event_stream_decoder.dart';
 import 'package:firebase_database_rest/src/stream/server_sent_event.dart';
+import 'package:firebase_database_rest/src/stream/vm/event_stream_decoder.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:test/test.dart';
 import 'package:tuple/tuple.dart';
 
-import '../../test_data.dart';
+import '../../../test_data.dart';
 
 class MockSSESink extends Mock implements EventSink<ServerSentEvent> {}
 

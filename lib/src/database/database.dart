@@ -6,6 +6,7 @@ import 'package:http/http.dart';
 import '../common/api_constants.dart';
 import '../common/timeout.dart';
 import '../rest/rest_api.dart';
+import '../stream/sse_client.dart';
 import 'store.dart';
 
 /// The root database that manages access to the firebase realtime database.
@@ -39,6 +40,9 @@ class FirebaseDatabase {
   ///
   /// The database will reuse the [Client] of the [FirebaseAccount.api], unless
   /// [client] is explicitly specified. Either one is used to create the [api].
+  /// If the explicit client is a [SSEClient], that one is used for the API.
+  /// Otherwise a wrapper is created around [client] to provide the SSE
+  /// features.
   ///
   /// By default, the database will connect to the root path of the server
   /// database. If you want to connect to a subset of the database, use
@@ -72,7 +76,9 @@ class FirebaseDatabase {
   /// to. If you want to connect to a database with an authenticated user, use
   /// [FirebaseDatabase()] instead.
   ///
-  /// The [client] is required here and used to create the [api].
+  /// The [client] is required here and used to create the [api]. If the
+  /// explicit client is a [SSEClient], that one is used for the API. Otherwise
+  /// a wrapper is created around [client] to provide the SSE features.
   ///
   /// By default, the database will connect to the root path of the server
   /// database. If you want to connect to a subset of the database, use

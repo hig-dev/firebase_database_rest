@@ -7,7 +7,7 @@ import '../common/api_constants.dart';
 import '../common/db_exception.dart';
 import '../common/filter.dart';
 import '../common/timeout.dart';
-import '../stream/event_source.dart';
+import '../stream/sse_client.dart';
 import 'models/db_response.dart';
 import 'models/stream_event.dart';
 import 'stream_event_transformer.dart';
@@ -20,7 +20,7 @@ import 'stream_event_transformer.dart';
 /// will request this eTag and return in via [DbResponse.eTag].
 class RestApi {
   /// The HTTP-Client that should be used to send requests.
-  final Client client;
+  final SSEClient client;
 
   /// The name of the database to connect to.
   final String database;
@@ -41,14 +41,18 @@ class RestApi {
   WriteSizeLimit? writeSizeLimit;
 
   /// Default constructor.
+  ///
+  /// If [client] is as [SSEClient], it is directly used as [this.client].
+  /// Otherwise, [SSEClient.proxy] is used to create a [SSEClient] from the
+  /// given simple [Client].
   RestApi({
-    required this.client,
+    required Client client,
     required this.database,
     this.basePath = '',
     this.idToken,
     this.timeout,
     this.writeSizeLimit,
-  });
+  }) : client = client is SSEClient ? client : SSEClient.proxy(client);
 
   /// Sends a get requests to the database to read some data.
   ///
@@ -253,8 +257,10 @@ class RestApi {
         formatMode: formatMode,
         shallow: shallow,
       ),
-      headers: _buildHeaders(),
     );
+    for (final eventType in StreamEventTransformer.eventTypes) {
+      source.addEventType(eventType);
+    }
     return source.transform(const StreamEventTransformer());
   }
 

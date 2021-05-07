@@ -59,7 +59,16 @@ class StreamEventTransformerSink
 /// happen, unless firebase decides to change how their APIs work.
 class StreamEventTransformer
     implements StreamTransformer<ServerSentEvent, StreamEvent> {
-  /// Default constructor
+  /// All the SSE event types that are consumed by this transformer.
+  static const eventTypes = [
+    'put',
+    'patch',
+    'keep-alive',
+    'cancel',
+    'auth_revoked',
+  ];
+
+  /// Default constructor.
   const StreamEventTransformer();
 
   @override

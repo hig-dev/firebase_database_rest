@@ -1,7 +1,6 @@
 import 'dart:developer';
 
 import 'package:firebase_auth_rest/firebase_auth_rest.dart';
-import 'package:firebase_database_rest/firebase_database_rest.dart';
 import 'package:firebase_database_rest/src/common/api_constants.dart';
 import 'package:firebase_database_rest/src/common/db_exception.dart';
 import 'package:firebase_database_rest/src/common/filter.dart';
@@ -9,7 +8,9 @@ import 'package:firebase_database_rest/src/database/database.dart';
 import 'package:firebase_database_rest/src/database/etag_receiver.dart';
 import 'package:firebase_database_rest/src/database/store.dart';
 import 'package:firebase_database_rest/src/database/store_event.dart';
+import 'package:firebase_database_rest/src/database/timestamp.dart';
 import 'package:firebase_database_rest/src/database/transaction.dart';
+// TODO import 'package:firebase_database_rest/firebase_database_rest.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:http/http.dart';
 import 'package:test/test.dart';
@@ -17,7 +18,7 @@ import 'package:tuple/tuple.dart';
 
 import '../stream_matcher_queue.dart';
 import '../test_data.dart';
-import 'test_config.dart';
+import 'test_config_vm.dart' if (dart.library.js) 'test_config_js.dart';
 
 part 'integration_test.freezed.dart';
 part 'integration_test.g.dart';
@@ -207,18 +208,21 @@ void main() {
     expect(res1, d1);
 
     // create a server timestamp
-    final before = DateTime.now().subtract(const Duration(seconds: 1));
+    final before = DateTime.now().subtract(const Duration(seconds: 3));
     const d2 = TestModel(
       id: 22,
       timestamp: FirebaseTimestamp.server(),
     );
     final res2 = await store.write('d2', d2);
-    final after = DateTime.now().add(const Duration(seconds: 1));
+    final after = DateTime.now().add(const Duration(seconds: 3));
     expect(res2, isNotNull);
     expect(res2!.id, d2.id);
     expect(
       res2.timestamp!.dateTime,
-      predicate<DateTime>((d) => d.isAfter(before) && d.isBefore(after)),
+      predicate<DateTime>(
+        (d) => d.isAfter(before) && d.isBefore(after),
+        'is between $before and $after',
+      ),
     );
   });
 

@@ -2,9 +2,9 @@ import 'dart:async';
 
 import 'package:meta/meta.dart';
 
-import '../common/transformer_sink.dart';
+import '../../common/transformer_sink.dart';
 
-import 'server_sent_event.dart';
+import '../server_sent_event.dart';
 
 /// @nodoc
 @internal

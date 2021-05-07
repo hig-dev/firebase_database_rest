@@ -19,6 +19,6 @@ coverage/
 .env
 
 # Test stuff
-*.mocks.dart
+*.env.dart
 test/**/*.freezed.dart
 test/**/*.g.dart
