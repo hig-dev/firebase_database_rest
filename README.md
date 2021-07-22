@@ -52,7 +52,7 @@ final account = // ...
 // create a database reference from that account
 final database = FirebaseDatabase(
   account: account,
-  database: 'my-firebase-project-id,
+  database: 'my-firebase-realtime-database-name,
   basePath: 'application/${account.localId}/example',
 );
 
