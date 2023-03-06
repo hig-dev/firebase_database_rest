@@ -19,6 +19,10 @@ import 'stream_event_transformer.dart';
 /// data changes at that location, the ETag changes, too. If set, the class
 /// will request this eTag and return in via [DbResponse.eTag].
 class RestApi {
+  /// The host url of the database, the default is 'firebaseio.com'.
+  /// Set this if you are using a custom region like 'europe-west1.firebasedatabase.app'.
+  final String host;
+
   /// The HTTP-Client that should be used to send requests.
   final SSEClient client;
 
@@ -48,6 +52,7 @@ class RestApi {
   RestApi({
     required Client client,
     required this.database,
+    this.host = 'firebaseio.com',
     this.basePath = '',
     this.idToken,
     this.timeout,
@@ -273,7 +278,7 @@ class RestApi {
   }) {
     final uri = Uri(
       scheme: 'https',
-      host: '$database.firebaseio.com',
+      host: '$database.$host',
       path: posix.normalize(
         path != null ? '$basePath/$path.json' : '$basePath.json',
       ),
