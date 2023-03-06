@@ -31,6 +31,9 @@ class FirebaseDatabase {
   /// explicit client is a [SSEClient], that one is used for the API. Otherwise
   /// a wrapper is created around [client] to provide the SSE features.
   ///
+  /// The [host] url of the database, the default is 'firebaseio.com'.
+  /// Set this if you are using a custom region like 'europe-west1.firebasedatabase.app'.
+  ///
   /// By default, the database will connect to the root path of the server
   /// database. If you want to connect to a subset of the database, use
   /// [basePath] to only connect to that part. This path will also be the path
@@ -41,12 +44,14 @@ class FirebaseDatabase {
   FirebaseDatabase({
     required Client client,
     required String database,
+    String host = "firebaseio.com",
     String basePath = '',
     Timeout? timeout,
     WriteSizeLimit? writeSizeLimit,
   }) : this.api(
           RestApi(
             client: client,
+            host: host,
             database: database,
             basePath: basePath,
             timeout: timeout,
