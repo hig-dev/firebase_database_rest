@@ -20,5 +20,3 @@ coverage/
 
 # Test stuff
 *.env.dart
-test/**/*.freezed.dart
-test/**/*.g.dart
