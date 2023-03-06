@@ -57,7 +57,7 @@ void main() {
 
   setUpAll(() {
     registerFallbackValue(Uri());
-    registerFallbackValue<BaseRequest>(FakeBaseRequest());
+    registerFallbackValue(FakeBaseRequest());
   });
 
   setUp(() {
@@ -683,13 +683,12 @@ void main() {
 
       late SutSSEStream sutStream;
 
-      void _mockListen(Stream<ServerSentEvent> data) => when(
-          () => mockStream.listen(
-                any(),
-                onError: any(named: 'onError'),
-                onDone: any(named: 'onDone'),
-                cancelOnError: any(named: 'cancelOnError'),
-              )).thenAnswer((i) => data.listen(
+      void _mockListen(Stream<ServerSentEvent> data) => when(() => mockStream.listen(
+            any(),
+            onError: any(named: 'onError'),
+            onDone: any(named: 'onDone'),
+            cancelOnError: any(named: 'cancelOnError'),
+          )).thenAnswer((i) => data.listen(
             i.positionalArguments[0] as void Function(ServerSentEvent)?,
             onError: i.namedArguments['onError'] as Function?,
             onDone: i.namedArguments['onData'] as void Function()?,

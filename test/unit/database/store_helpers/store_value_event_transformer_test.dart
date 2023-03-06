@@ -18,19 +18,15 @@ part 'store_value_event_transformer_test.g.dart';
 class TestModel with _$TestModel {
   const factory TestModel(int id, String data) = _TestModel;
 
-  factory TestModel.fromJson(Map<String, dynamic> json) =>
-      _$TestModelFromJson(json);
+  factory TestModel.fromJson(Map<String, dynamic> json) => _$TestModelFromJson(json);
 }
 
 @freezed
-class TestModelPatchSet
-    with _$TestModelPatchSet
-    implements PatchSet<TestModel> {
+class TestModelPatchSet with _$TestModelPatchSet implements PatchSet<TestModel> {
   const TestModelPatchSet._();
 
   // ignore: sort_unnamed_constructors_first
-  const factory TestModelPatchSet(Map<String, dynamic> data) =
-      _TestModelPatchSet;
+  const factory TestModelPatchSet(Map<String, dynamic> data) = _TestModelPatchSet;
 
   @override
   TestModel apply(TestModel value) => TestModel(
@@ -39,8 +35,7 @@ class TestModelPatchSet
       );
 }
 
-class MockValueEventSink extends Mock
-    implements EventSink<ValueEvent<TestModel>> {}
+class MockValueEventSink extends Mock implements EventSink<ValueEvent<TestModel>> {}
 
 void main() {
   group('StoreValueEventTransformerSink', () {
@@ -53,8 +48,7 @@ void main() {
 
       sut = StoreValueEventTransformerSink<TestModel>(
         outSink: mockValueEventSink,
-        dataFromJson: (dynamic json) =>
-            TestModel.fromJson(json as Map<String, dynamic>),
+        dataFromJson: (dynamic json) => TestModel.fromJson(json as Map<String, dynamic>),
         patchSetFactory: (data) => TestModelPatchSet(data),
       );
     });
@@ -74,7 +68,7 @@ void main() {
           ),
           Tuple3(
             StreamEvent.put(path: '/', data: null),
-            ValueEvent.delete(),
+            ValueEvent<Never>.delete(),
             null,
           ),
           Tuple3(
@@ -108,8 +102,7 @@ void main() {
       test('maps auth revoked to error', () {
         sut.add(const StreamEvent.authRevoked());
         verify(
-          () => mockValueEventSink
-              .addError(any(that: isA<AuthRevokedException>())),
+          () => mockValueEventSink.addError(any(that: isA<AuthRevokedException>())),
         );
         verifyNoMoreInteractions(mockValueEventSink);
       });
@@ -136,8 +129,7 @@ void main() {
 
     setUp(() {
       sut = StoreValueEventTransformer<TestModel>(
-        dataFromJson: (dynamic json) =>
-            TestModel.fromJson(json as Map<String, dynamic>),
+        dataFromJson: (dynamic json) => TestModel.fromJson(json as Map<String, dynamic>),
         patchSetFactory: (data) => TestModelPatchSet(data),
       );
     });

@@ -18,8 +18,7 @@ part 'store_test.g.dart';
 class TestModel with _$TestModel {
   const factory TestModel(int id, String data) = _TestModel;
 
-  factory TestModel.fromJson(Map<String, dynamic> json) =>
-      _$TestModelFromJson(json);
+  factory TestModel.fromJson(Map<String, dynamic> json) => _$TestModelFromJson(json);
 }
 
 class MockRestApi extends Mock implements RestApi {}
@@ -99,14 +98,13 @@ void main() {
         ifMatch: any(named: 'ifMatch'),
       ));
 
-  When<Future<Stream<StreamEvent>>> _whenStream() =>
-      when(() => mockRestApi.stream(
-            path: any(named: 'path'),
-            printMode: any(named: 'printMode'),
-            formatMode: any(named: 'formatMode'),
-            shallow: any(named: 'shallow'),
-            filter: any(named: 'filter'),
-          ));
+  When<Future<Stream<StreamEvent>>> _whenStream() => when(() => mockRestApi.stream(
+        path: any(named: 'path'),
+        printMode: any(named: 'printMode'),
+        formatMode: any(named: 'formatMode'),
+        shallow: any(named: 'shallow'),
+        filter: any(named: 'filter'),
+      ));
 
   setUp(() {
     reset(mockRestApi);
@@ -191,8 +189,7 @@ void main() {
       sut = FirebaseStore<TestModel>.apiCreate(
         restApi: mockRestApi,
         subPaths: ['base', 'path/x'],
-        onDataFromJson: (dynamic json) =>
-            TestModel.fromJson(json as Map<String, dynamic>),
+        onDataFromJson: (dynamic json) => TestModel.fromJson(json as Map<String, dynamic>),
         onDataToJson: (data) => data.toJson(),
         onPatchData: (data, updatedFields) => TestModel(
           updatedFields['id'] as int? ?? data.id,
@@ -528,8 +525,7 @@ void main() {
       });
 
       test('patches data with returned message', () async {
-        _whenPatch().thenAnswer(
-            (i) async => const DbResponse(data: {'data': 'newData'}));
+        _whenPatch().thenAnswer((i) async => const DbResponse(data: {'data': 'newData'}));
 
         final result = await sut.update(
           key,
@@ -777,7 +773,7 @@ void main() {
         );
 
         final result = await sut.streamEntry(key);
-        expect(result, emits(const ValueEvent<TestModel>.delete()));
+        expect(result, emits(const ValueEvent<Never>.delete()));
       });
     });
 

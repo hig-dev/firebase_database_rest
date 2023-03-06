@@ -1,6 +1,5 @@
 import 'dart:developer';
 
-import 'package:firebase_auth_rest/firebase_auth_rest.dart';
 import 'package:firebase_database_rest/src/common/api_constants.dart';
 import 'package:firebase_database_rest/src/common/db_exception.dart';
 import 'package:firebase_database_rest/src/common/filter.dart';
@@ -35,8 +34,7 @@ class TestModel with _$TestModel {
     FirebaseTimestamp? timestamp,
   }) = _TestModel;
 
-  factory TestModel.fromJson(Map<String, dynamic> json) =>
-      _$TestModelFromJson(json);
+  factory TestModel.fromJson(Map<String, dynamic> json) => _$TestModelFromJson(json);
 
   TestModel patch(Map<String, dynamic> json) => (this as dynamic).copyWith(
         id: json.containsKey('id') ? json['id'] : freezed,
@@ -54,8 +52,7 @@ class TestStore extends FirebaseStore<TestModel> {
         );
 
   @override
-  TestModel dataFromJson(dynamic json) =>
-      TestModel.fromJson(json as Map<String, dynamic>);
+  TestModel dataFromJson(dynamic json) => TestModel.fromJson(json as Map<String, dynamic>);
 
   @override
   dynamic dataToJson(TestModel data) => data.toJson();
@@ -67,17 +64,13 @@ class TestStore extends FirebaseStore<TestModel> {
 
 void main() {
   late final Client client;
-  late final FirebaseAccount account;
   late final FirebaseDatabase database;
 
   setUpAll(() async {
     client = Client();
-    final auth = FirebaseAuth(client, TestConfig.apiKey);
-    account = await auth.signUpAnonymous(autoRefresh: false);
     database = FirebaseDatabase(
-      account: account,
       database: TestConfig.projectId,
-      basePath: 'firebase_database_rest/${account.localId}',
+      basePath: 'firebase_database_rest/',
       client: client,
     );
   });
@@ -96,20 +89,7 @@ void main() {
       );
     }
 
-    try {
-      await account.delete();
-    } catch (e, s) {
-      error = true;
-      log(
-        'Account deletion failed',
-        error: e,
-        stackTrace: s,
-        level: 1000,
-      );
-    }
-
     await database.dispose();
-    database.account?.dispose();
     client.close();
 
     if (error) {
@@ -243,8 +223,7 @@ void main() {
     expect(
       await store.all(),
       {
-        for (var i = 0; i < TestConfig.allTestLimit; ++i)
-          '_$i': TestModel(id: i),
+        for (var i = 0; i < TestConfig.allTestLimit; ++i) '_$i': TestModel(id: i),
       },
     );
 
@@ -388,8 +367,7 @@ void main() {
   });
 
   group('query', () {
-    testData<
-        Tuple2<FilterBuilder<int> Function(FilterBuilder<int>), List<int>>>(
+    testData<Tuple2<FilterBuilder<int> Function(FilterBuilder<int>), List<int>>>(
       'property',
       [
         Tuple2((b) => b.limitToFirst(3), const [0, 1, 2]),
@@ -429,9 +407,7 @@ void main() {
           '${fixture.item1(Filter.property<int>('id')).build()} -> ${fixture.item2}',
     );
 
-    testData<
-        Tuple2<FilterBuilder<String> Function(FilterBuilder<String>),
-            List<int>>>(
+    testData<Tuple2<FilterBuilder<String> Function(FilterBuilder<String>), List<int>>>(
       'key',
       [
         Tuple2((b) => b.limitToFirst(3), const [0, 1, 2]),
@@ -471,8 +447,7 @@ void main() {
           '${fixture.item1(Filter.key()).build()} -> ${fixture.item2}',
     );
 
-    testData<
-        Tuple2<FilterBuilder<int> Function(FilterBuilder<int>), List<int>>>(
+    testData<Tuple2<FilterBuilder<int> Function(FilterBuilder<int>), List<int>>>(
       'valueXX',
       [
         Tuple2((b) => b.limitToFirst(3), const [0, 1, 2]),

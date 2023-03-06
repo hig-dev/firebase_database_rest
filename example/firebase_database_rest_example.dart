@@ -2,7 +2,6 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:firebase_auth_rest/firebase_auth_rest.dart';
 import 'package:firebase_database_rest/firebase_database_rest.dart';
 import 'package:http/http.dart';
 
@@ -13,8 +12,7 @@ class ExampleModel {
   const ExampleModel(this.id, this.data);
 
   @override
-  bool operator ==(covariant ExampleModel other) =>
-      id == other.id && data == other.data;
+  bool operator ==(covariant ExampleModel other) => id == other.id && data == other.data;
 
   @override
   int get hashCode => runtimeType.hashCode ^ id.hashCode ^ data.hashCode;
@@ -32,20 +30,17 @@ Future<void> main(List<String> args) async {
   }
 
   Client? client;
-  FirebaseAccount? account;
   FirebaseDatabase? database;
   StreamSubscription<StoreEvent<ExampleModel>>? sub;
   try {
     // use firebase_auth_rest to log into a firebase account
     client = Client();
-    final auth = FirebaseAuth(client, args[1]);
-    account = await auth.signUpAnonymous(autoRefresh: false);
 
     // create a database reference from that account
     database = FirebaseDatabase(
-      account: account,
+      client: client,
       database: args[0],
-      basePath: 'firebase_database_rest/${account.localId}/demo',
+      basePath: 'firebase_database_rest/demo',
     );
 
     // create typed store. In this example, we use the database root path,
@@ -87,11 +82,9 @@ Future<void> main(List<String> args) async {
 
     // cleanup: delete database and account
     await database.rootStore.destroy();
-    await account.delete();
   } finally {
     await sub?.cancel();
     await database?.dispose();
-    account?.dispose();
     client?.close();
   }
 }

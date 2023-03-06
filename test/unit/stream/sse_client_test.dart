@@ -27,7 +27,7 @@ class SutClientProxy with ClientProxy implements Client {
 void main() {
   setUpAll(() {
     registerFallbackValue(Uri());
-    registerFallbackValue<Request>(FakeRequest());
+    registerFallbackValue(FakeRequest());
   });
 
   test('fallback factory throws exception', () {
