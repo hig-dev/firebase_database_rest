@@ -38,6 +38,18 @@ class StoreEvent<T> with _$StoreEvent<T> {
     T value,
   ) = _StorePut<T>;
 
+  /// Indicates the array under [key] has been updated at [index] to a new [value].
+  const factory StoreEvent.arrayPut(
+    /// The key of the array that has been updated.
+    String key,
+
+    /// The index of the array that has been updated.
+    int index,
+
+    /// The updated data.
+    T value,
+  ) = _StoreArrayPut<T>;
+
   /// Indicates the entry under [key] has been deleted.
   const factory StoreEvent.delete(
     /// The key of the data that has been deleted.

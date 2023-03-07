@@ -11,9 +11,10 @@ import 'map_transform.dart';
 
 /// @nodoc
 @internal
-class StoreEventTransformerSink<T>
-    extends TransformerSink<StreamEvent, StoreEvent<T>> with MapTransform<T> {
+class StoreEventTransformerSink<T> extends TransformerSink<StreamEvent, StoreEvent<T>>
+    with MapTransform<T> {
   static final _subPathRegexp = RegExp(r'^\/([^\/]+)$');
+  static final _subPathWithIndexRegexp = RegExp(r'^\/([^\/]+)\/(0|[1-9][0-9]*)$');
 
   /// @nodoc
   final DataFromJsonCallback<T> dataFromJson;
@@ -56,7 +57,18 @@ class StoreEventTransformerSink<T>
         outSink.add(StoreEvent.delete(match[1]!));
       }
     } else {
-      outSink.add(StoreEvent.invalidPath(path));
+      final withIndexMatch = _subPathWithIndexRegexp.firstMatch(path);
+      if (withIndexMatch != null) {
+        if (data != null) {
+          outSink.add(StoreEvent.arrayPut(
+              withIndexMatch[1]!, int.parse(withIndexMatch[2]!), dataFromJson(data)));
+        } else {
+          // Deleting an array value at index is not supported
+          outSink.add(StoreEvent.invalidPath(path));
+        }
+      } else {
+        outSink.add(StoreEvent.invalidPath(path));
+      }
     }
   }
 
@@ -83,8 +95,7 @@ class StoreEventTransformerSink<T>
 ///
 /// **Note:** Typically, you would use [FirebaseStore.streamAll] instead of
 /// using this class directly.
-class StoreEventTransformer<T>
-    implements StreamTransformer<StreamEvent, StoreEvent<T>> {
+class StoreEventTransformer<T> implements StreamTransformer<StreamEvent, StoreEvent<T>> {
   /// A callback that can convert the received JSON data to [T]
   final DataFromJsonCallback<T> dataFromJson;
 
@@ -98,8 +109,7 @@ class StoreEventTransformer<T>
   });
 
   @override
-  Stream<StoreEvent<T>> bind(Stream<StreamEvent> stream) =>
-      Stream.eventTransformed(
+  Stream<StoreEvent<T>> bind(Stream<StreamEvent> stream) => Stream.eventTransformed(
         stream,
         (sink) => StoreEventTransformerSink(
           outSink: sink,

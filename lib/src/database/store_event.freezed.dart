@@ -20,6 +20,7 @@ mixin _$StoreEvent<T> {
   TResult when<TResult extends Object?>({
     required TResult Function(Map<String, T> data) reset,
     required TResult Function(String key, T value) put,
+    required TResult Function(String key, int index, T value) arrayPut,
     required TResult Function(String key) delete,
     required TResult Function(String key, PatchSet<T> patchSet) patch,
     required TResult Function(String path) invalidPath,
@@ -29,6 +30,7 @@ mixin _$StoreEvent<T> {
   TResult? whenOrNull<TResult extends Object?>({
     TResult? Function(Map<String, T> data)? reset,
     TResult? Function(String key, T value)? put,
+    TResult? Function(String key, int index, T value)? arrayPut,
     TResult? Function(String key)? delete,
     TResult? Function(String key, PatchSet<T> patchSet)? patch,
     TResult? Function(String path)? invalidPath,
@@ -38,6 +40,7 @@ mixin _$StoreEvent<T> {
   TResult maybeWhen<TResult extends Object?>({
     TResult Function(Map<String, T> data)? reset,
     TResult Function(String key, T value)? put,
+    TResult Function(String key, int index, T value)? arrayPut,
     TResult Function(String key)? delete,
     TResult Function(String key, PatchSet<T> patchSet)? patch,
     TResult Function(String path)? invalidPath,
@@ -48,6 +51,7 @@ mixin _$StoreEvent<T> {
   TResult map<TResult extends Object?>({
     required TResult Function(_StoreReset<T> value) reset,
     required TResult Function(_StorePut<T> value) put,
+    required TResult Function(_StoreArrayPut<T> value) arrayPut,
     required TResult Function(_StoreDelete<T> value) delete,
     required TResult Function(_StorePatch<T> value) patch,
     required TResult Function(_StoreInvalidPath<T> value) invalidPath,
@@ -57,6 +61,7 @@ mixin _$StoreEvent<T> {
   TResult? mapOrNull<TResult extends Object?>({
     TResult? Function(_StoreReset<T> value)? reset,
     TResult? Function(_StorePut<T> value)? put,
+    TResult? Function(_StoreArrayPut<T> value)? arrayPut,
     TResult? Function(_StoreDelete<T> value)? delete,
     TResult? Function(_StorePatch<T> value)? patch,
     TResult? Function(_StoreInvalidPath<T> value)? invalidPath,
@@ -66,6 +71,7 @@ mixin _$StoreEvent<T> {
   TResult maybeMap<TResult extends Object?>({
     TResult Function(_StoreReset<T> value)? reset,
     TResult Function(_StorePut<T> value)? put,
+    TResult Function(_StoreArrayPut<T> value)? arrayPut,
     TResult Function(_StoreDelete<T> value)? delete,
     TResult Function(_StorePatch<T> value)? patch,
     TResult Function(_StoreInvalidPath<T> value)? invalidPath,
@@ -167,6 +173,7 @@ class _$_StoreReset<T> implements _StoreReset<T> {
   TResult when<TResult extends Object?>({
     required TResult Function(Map<String, T> data) reset,
     required TResult Function(String key, T value) put,
+    required TResult Function(String key, int index, T value) arrayPut,
     required TResult Function(String key) delete,
     required TResult Function(String key, PatchSet<T> patchSet) patch,
     required TResult Function(String path) invalidPath,
@@ -179,6 +186,7 @@ class _$_StoreReset<T> implements _StoreReset<T> {
   TResult? whenOrNull<TResult extends Object?>({
     TResult? Function(Map<String, T> data)? reset,
     TResult? Function(String key, T value)? put,
+    TResult? Function(String key, int index, T value)? arrayPut,
     TResult? Function(String key)? delete,
     TResult? Function(String key, PatchSet<T> patchSet)? patch,
     TResult? Function(String path)? invalidPath,
@@ -191,6 +199,7 @@ class _$_StoreReset<T> implements _StoreReset<T> {
   TResult maybeWhen<TResult extends Object?>({
     TResult Function(Map<String, T> data)? reset,
     TResult Function(String key, T value)? put,
+    TResult Function(String key, int index, T value)? arrayPut,
     TResult Function(String key)? delete,
     TResult Function(String key, PatchSet<T> patchSet)? patch,
     TResult Function(String path)? invalidPath,
@@ -207,6 +216,7 @@ class _$_StoreReset<T> implements _StoreReset<T> {
   TResult map<TResult extends Object?>({
     required TResult Function(_StoreReset<T> value) reset,
     required TResult Function(_StorePut<T> value) put,
+    required TResult Function(_StoreArrayPut<T> value) arrayPut,
     required TResult Function(_StoreDelete<T> value) delete,
     required TResult Function(_StorePatch<T> value) patch,
     required TResult Function(_StoreInvalidPath<T> value) invalidPath,
@@ -219,6 +229,7 @@ class _$_StoreReset<T> implements _StoreReset<T> {
   TResult? mapOrNull<TResult extends Object?>({
     TResult? Function(_StoreReset<T> value)? reset,
     TResult? Function(_StorePut<T> value)? put,
+    TResult? Function(_StoreArrayPut<T> value)? arrayPut,
     TResult? Function(_StoreDelete<T> value)? delete,
     TResult? Function(_StorePatch<T> value)? patch,
     TResult? Function(_StoreInvalidPath<T> value)? invalidPath,
@@ -231,6 +242,7 @@ class _$_StoreReset<T> implements _StoreReset<T> {
   TResult maybeMap<TResult extends Object?>({
     TResult Function(_StoreReset<T> value)? reset,
     TResult Function(_StorePut<T> value)? put,
+    TResult Function(_StoreArrayPut<T> value)? arrayPut,
     TResult Function(_StoreDelete<T> value)? delete,
     TResult Function(_StorePatch<T> value)? patch,
     TResult Function(_StoreInvalidPath<T> value)? invalidPath,
@@ -331,6 +343,7 @@ class _$_StorePut<T> implements _StorePut<T> {
   TResult when<TResult extends Object?>({
     required TResult Function(Map<String, T> data) reset,
     required TResult Function(String key, T value) put,
+    required TResult Function(String key, int index, T value) arrayPut,
     required TResult Function(String key) delete,
     required TResult Function(String key, PatchSet<T> patchSet) patch,
     required TResult Function(String path) invalidPath,
@@ -343,6 +356,7 @@ class _$_StorePut<T> implements _StorePut<T> {
   TResult? whenOrNull<TResult extends Object?>({
     TResult? Function(Map<String, T> data)? reset,
     TResult? Function(String key, T value)? put,
+    TResult? Function(String key, int index, T value)? arrayPut,
     TResult? Function(String key)? delete,
     TResult? Function(String key, PatchSet<T> patchSet)? patch,
     TResult? Function(String path)? invalidPath,
@@ -355,6 +369,7 @@ class _$_StorePut<T> implements _StorePut<T> {
   TResult maybeWhen<TResult extends Object?>({
     TResult Function(Map<String, T> data)? reset,
     TResult Function(String key, T value)? put,
+    TResult Function(String key, int index, T value)? arrayPut,
     TResult Function(String key)? delete,
     TResult Function(String key, PatchSet<T> patchSet)? patch,
     TResult Function(String path)? invalidPath,
@@ -371,6 +386,7 @@ class _$_StorePut<T> implements _StorePut<T> {
   TResult map<TResult extends Object?>({
     required TResult Function(_StoreReset<T> value) reset,
     required TResult Function(_StorePut<T> value) put,
+    required TResult Function(_StoreArrayPut<T> value) arrayPut,
     required TResult Function(_StoreDelete<T> value) delete,
     required TResult Function(_StorePatch<T> value) patch,
     required TResult Function(_StoreInvalidPath<T> value) invalidPath,
@@ -383,6 +399,7 @@ class _$_StorePut<T> implements _StorePut<T> {
   TResult? mapOrNull<TResult extends Object?>({
     TResult? Function(_StoreReset<T> value)? reset,
     TResult? Function(_StorePut<T> value)? put,
+    TResult? Function(_StoreArrayPut<T> value)? arrayPut,
     TResult? Function(_StoreDelete<T> value)? delete,
     TResult? Function(_StorePatch<T> value)? patch,
     TResult? Function(_StoreInvalidPath<T> value)? invalidPath,
@@ -395,6 +412,7 @@ class _$_StorePut<T> implements _StorePut<T> {
   TResult maybeMap<TResult extends Object?>({
     TResult Function(_StoreReset<T> value)? reset,
     TResult Function(_StorePut<T> value)? put,
+    TResult Function(_StoreArrayPut<T> value)? arrayPut,
     TResult Function(_StoreDelete<T> value)? delete,
     TResult Function(_StorePatch<T> value)? patch,
     TResult Function(_StoreInvalidPath<T> value)? invalidPath,
@@ -417,6 +435,193 @@ abstract class _StorePut<T> implements StoreEvent<T> {
   T get value;
   @JsonKey(ignore: true)
   _$$_StorePutCopyWith<T, _$_StorePut<T>> get copyWith =>
+      throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+abstract class _$$_StoreArrayPutCopyWith<T, $Res> {
+  factory _$$_StoreArrayPutCopyWith(
+          _$_StoreArrayPut<T> value, $Res Function(_$_StoreArrayPut<T>) then) =
+      __$$_StoreArrayPutCopyWithImpl<T, $Res>;
+  @useResult
+  $Res call({String key, int index, T value});
+}
+
+/// @nodoc
+class __$$_StoreArrayPutCopyWithImpl<T, $Res>
+    extends _$StoreEventCopyWithImpl<T, $Res, _$_StoreArrayPut<T>>
+    implements _$$_StoreArrayPutCopyWith<T, $Res> {
+  __$$_StoreArrayPutCopyWithImpl(
+      _$_StoreArrayPut<T> _value, $Res Function(_$_StoreArrayPut<T>) _then)
+      : super(_value, _then);
+
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? key = null,
+    Object? index = null,
+    Object? value = freezed,
+  }) {
+    return _then(_$_StoreArrayPut<T>(
+      null == key
+          ? _value.key
+          : key // ignore: cast_nullable_to_non_nullable
+              as String,
+      null == index
+          ? _value.index
+          : index // ignore: cast_nullable_to_non_nullable
+              as int,
+      freezed == value
+          ? _value.value
+          : value // ignore: cast_nullable_to_non_nullable
+              as T,
+    ));
+  }
+}
+
+/// @nodoc
+
+class _$_StoreArrayPut<T> implements _StoreArrayPut<T> {
+  const _$_StoreArrayPut(this.key, this.index, this.value);
+
+  /// The key of the array that has been updated.
+  @override
+  final String key;
+
+  /// The index of the array that has been updated.
+  @override
+  final int index;
+
+  /// The updated data.
+  @override
+  final T value;
+
+  @override
+  String toString() {
+    return 'StoreEvent<$T>.arrayPut(key: $key, index: $index, value: $value)';
+  }
+
+  @override
+  bool operator ==(dynamic other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$_StoreArrayPut<T> &&
+            (identical(other.key, key) || other.key == key) &&
+            (identical(other.index, index) || other.index == index) &&
+            const DeepCollectionEquality().equals(other.value, value));
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      runtimeType, key, index, const DeepCollectionEquality().hash(value));
+
+  @JsonKey(ignore: true)
+  @override
+  @pragma('vm:prefer-inline')
+  _$$_StoreArrayPutCopyWith<T, _$_StoreArrayPut<T>> get copyWith =>
+      __$$_StoreArrayPutCopyWithImpl<T, _$_StoreArrayPut<T>>(this, _$identity);
+
+  @override
+  @optionalTypeArgs
+  TResult when<TResult extends Object?>({
+    required TResult Function(Map<String, T> data) reset,
+    required TResult Function(String key, T value) put,
+    required TResult Function(String key, int index, T value) arrayPut,
+    required TResult Function(String key) delete,
+    required TResult Function(String key, PatchSet<T> patchSet) patch,
+    required TResult Function(String path) invalidPath,
+  }) {
+    return arrayPut(key, index, value);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult? whenOrNull<TResult extends Object?>({
+    TResult? Function(Map<String, T> data)? reset,
+    TResult? Function(String key, T value)? put,
+    TResult? Function(String key, int index, T value)? arrayPut,
+    TResult? Function(String key)? delete,
+    TResult? Function(String key, PatchSet<T> patchSet)? patch,
+    TResult? Function(String path)? invalidPath,
+  }) {
+    return arrayPut?.call(key, index, value);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult maybeWhen<TResult extends Object?>({
+    TResult Function(Map<String, T> data)? reset,
+    TResult Function(String key, T value)? put,
+    TResult Function(String key, int index, T value)? arrayPut,
+    TResult Function(String key)? delete,
+    TResult Function(String key, PatchSet<T> patchSet)? patch,
+    TResult Function(String path)? invalidPath,
+    required TResult orElse(),
+  }) {
+    if (arrayPut != null) {
+      return arrayPut(key, index, value);
+    }
+    return orElse();
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult map<TResult extends Object?>({
+    required TResult Function(_StoreReset<T> value) reset,
+    required TResult Function(_StorePut<T> value) put,
+    required TResult Function(_StoreArrayPut<T> value) arrayPut,
+    required TResult Function(_StoreDelete<T> value) delete,
+    required TResult Function(_StorePatch<T> value) patch,
+    required TResult Function(_StoreInvalidPath<T> value) invalidPath,
+  }) {
+    return arrayPut(this);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult? mapOrNull<TResult extends Object?>({
+    TResult? Function(_StoreReset<T> value)? reset,
+    TResult? Function(_StorePut<T> value)? put,
+    TResult? Function(_StoreArrayPut<T> value)? arrayPut,
+    TResult? Function(_StoreDelete<T> value)? delete,
+    TResult? Function(_StorePatch<T> value)? patch,
+    TResult? Function(_StoreInvalidPath<T> value)? invalidPath,
+  }) {
+    return arrayPut?.call(this);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult maybeMap<TResult extends Object?>({
+    TResult Function(_StoreReset<T> value)? reset,
+    TResult Function(_StorePut<T> value)? put,
+    TResult Function(_StoreArrayPut<T> value)? arrayPut,
+    TResult Function(_StoreDelete<T> value)? delete,
+    TResult Function(_StorePatch<T> value)? patch,
+    TResult Function(_StoreInvalidPath<T> value)? invalidPath,
+    required TResult orElse(),
+  }) {
+    if (arrayPut != null) {
+      return arrayPut(this);
+    }
+    return orElse();
+  }
+}
+
+abstract class _StoreArrayPut<T> implements StoreEvent<T> {
+  const factory _StoreArrayPut(
+      final String key, final int index, final T value) = _$_StoreArrayPut<T>;
+
+  /// The key of the array that has been updated.
+  String get key;
+
+  /// The index of the array that has been updated.
+  int get index;
+
+  /// The updated data.
+  T get value;
+  @JsonKey(ignore: true)
+  _$$_StoreArrayPutCopyWith<T, _$_StoreArrayPut<T>> get copyWith =>
       throw _privateConstructorUsedError;
 }
 
@@ -487,6 +692,7 @@ class _$_StoreDelete<T> implements _StoreDelete<T> {
   TResult when<TResult extends Object?>({
     required TResult Function(Map<String, T> data) reset,
     required TResult Function(String key, T value) put,
+    required TResult Function(String key, int index, T value) arrayPut,
     required TResult Function(String key) delete,
     required TResult Function(String key, PatchSet<T> patchSet) patch,
     required TResult Function(String path) invalidPath,
@@ -499,6 +705,7 @@ class _$_StoreDelete<T> implements _StoreDelete<T> {
   TResult? whenOrNull<TResult extends Object?>({
     TResult? Function(Map<String, T> data)? reset,
     TResult? Function(String key, T value)? put,
+    TResult? Function(String key, int index, T value)? arrayPut,
     TResult? Function(String key)? delete,
     TResult? Function(String key, PatchSet<T> patchSet)? patch,
     TResult? Function(String path)? invalidPath,
@@ -511,6 +718,7 @@ class _$_StoreDelete<T> implements _StoreDelete<T> {
   TResult maybeWhen<TResult extends Object?>({
     TResult Function(Map<String, T> data)? reset,
     TResult Function(String key, T value)? put,
+    TResult Function(String key, int index, T value)? arrayPut,
     TResult Function(String key)? delete,
     TResult Function(String key, PatchSet<T> patchSet)? patch,
     TResult Function(String path)? invalidPath,
@@ -527,6 +735,7 @@ class _$_StoreDelete<T> implements _StoreDelete<T> {
   TResult map<TResult extends Object?>({
     required TResult Function(_StoreReset<T> value) reset,
     required TResult Function(_StorePut<T> value) put,
+    required TResult Function(_StoreArrayPut<T> value) arrayPut,
     required TResult Function(_StoreDelete<T> value) delete,
     required TResult Function(_StorePatch<T> value) patch,
     required TResult Function(_StoreInvalidPath<T> value) invalidPath,
@@ -539,6 +748,7 @@ class _$_StoreDelete<T> implements _StoreDelete<T> {
   TResult? mapOrNull<TResult extends Object?>({
     TResult? Function(_StoreReset<T> value)? reset,
     TResult? Function(_StorePut<T> value)? put,
+    TResult? Function(_StoreArrayPut<T> value)? arrayPut,
     TResult? Function(_StoreDelete<T> value)? delete,
     TResult? Function(_StorePatch<T> value)? patch,
     TResult? Function(_StoreInvalidPath<T> value)? invalidPath,
@@ -551,6 +761,7 @@ class _$_StoreDelete<T> implements _StoreDelete<T> {
   TResult maybeMap<TResult extends Object?>({
     TResult Function(_StoreReset<T> value)? reset,
     TResult Function(_StorePut<T> value)? put,
+    TResult Function(_StoreArrayPut<T> value)? arrayPut,
     TResult Function(_StoreDelete<T> value)? delete,
     TResult Function(_StorePatch<T> value)? patch,
     TResult Function(_StoreInvalidPath<T> value)? invalidPath,
@@ -651,6 +862,7 @@ class _$_StorePatch<T> implements _StorePatch<T> {
   TResult when<TResult extends Object?>({
     required TResult Function(Map<String, T> data) reset,
     required TResult Function(String key, T value) put,
+    required TResult Function(String key, int index, T value) arrayPut,
     required TResult Function(String key) delete,
     required TResult Function(String key, PatchSet<T> patchSet) patch,
     required TResult Function(String path) invalidPath,
@@ -663,6 +875,7 @@ class _$_StorePatch<T> implements _StorePatch<T> {
   TResult? whenOrNull<TResult extends Object?>({
     TResult? Function(Map<String, T> data)? reset,
     TResult? Function(String key, T value)? put,
+    TResult? Function(String key, int index, T value)? arrayPut,
     TResult? Function(String key)? delete,
     TResult? Function(String key, PatchSet<T> patchSet)? patch,
     TResult? Function(String path)? invalidPath,
@@ -675,6 +888,7 @@ class _$_StorePatch<T> implements _StorePatch<T> {
   TResult maybeWhen<TResult extends Object?>({
     TResult Function(Map<String, T> data)? reset,
     TResult Function(String key, T value)? put,
+    TResult Function(String key, int index, T value)? arrayPut,
     TResult Function(String key)? delete,
     TResult Function(String key, PatchSet<T> patchSet)? patch,
     TResult Function(String path)? invalidPath,
@@ -691,6 +905,7 @@ class _$_StorePatch<T> implements _StorePatch<T> {
   TResult map<TResult extends Object?>({
     required TResult Function(_StoreReset<T> value) reset,
     required TResult Function(_StorePut<T> value) put,
+    required TResult Function(_StoreArrayPut<T> value) arrayPut,
     required TResult Function(_StoreDelete<T> value) delete,
     required TResult Function(_StorePatch<T> value) patch,
     required TResult Function(_StoreInvalidPath<T> value) invalidPath,
@@ -703,6 +918,7 @@ class _$_StorePatch<T> implements _StorePatch<T> {
   TResult? mapOrNull<TResult extends Object?>({
     TResult? Function(_StoreReset<T> value)? reset,
     TResult? Function(_StorePut<T> value)? put,
+    TResult? Function(_StoreArrayPut<T> value)? arrayPut,
     TResult? Function(_StoreDelete<T> value)? delete,
     TResult? Function(_StorePatch<T> value)? patch,
     TResult? Function(_StoreInvalidPath<T> value)? invalidPath,
@@ -715,6 +931,7 @@ class _$_StorePatch<T> implements _StorePatch<T> {
   TResult maybeMap<TResult extends Object?>({
     TResult Function(_StoreReset<T> value)? reset,
     TResult Function(_StorePut<T> value)? put,
+    TResult Function(_StoreArrayPut<T> value)? arrayPut,
     TResult Function(_StoreDelete<T> value)? delete,
     TResult Function(_StorePatch<T> value)? patch,
     TResult Function(_StoreInvalidPath<T> value)? invalidPath,
@@ -809,6 +1026,7 @@ class _$_StoreInvalidPath<T> implements _StoreInvalidPath<T> {
   TResult when<TResult extends Object?>({
     required TResult Function(Map<String, T> data) reset,
     required TResult Function(String key, T value) put,
+    required TResult Function(String key, int index, T value) arrayPut,
     required TResult Function(String key) delete,
     required TResult Function(String key, PatchSet<T> patchSet) patch,
     required TResult Function(String path) invalidPath,
@@ -821,6 +1039,7 @@ class _$_StoreInvalidPath<T> implements _StoreInvalidPath<T> {
   TResult? whenOrNull<TResult extends Object?>({
     TResult? Function(Map<String, T> data)? reset,
     TResult? Function(String key, T value)? put,
+    TResult? Function(String key, int index, T value)? arrayPut,
     TResult? Function(String key)? delete,
     TResult? Function(String key, PatchSet<T> patchSet)? patch,
     TResult? Function(String path)? invalidPath,
@@ -833,6 +1052,7 @@ class _$_StoreInvalidPath<T> implements _StoreInvalidPath<T> {
   TResult maybeWhen<TResult extends Object?>({
     TResult Function(Map<String, T> data)? reset,
     TResult Function(String key, T value)? put,
+    TResult Function(String key, int index, T value)? arrayPut,
     TResult Function(String key)? delete,
     TResult Function(String key, PatchSet<T> patchSet)? patch,
     TResult Function(String path)? invalidPath,
@@ -849,6 +1069,7 @@ class _$_StoreInvalidPath<T> implements _StoreInvalidPath<T> {
   TResult map<TResult extends Object?>({
     required TResult Function(_StoreReset<T> value) reset,
     required TResult Function(_StorePut<T> value) put,
+    required TResult Function(_StoreArrayPut<T> value) arrayPut,
     required TResult Function(_StoreDelete<T> value) delete,
     required TResult Function(_StorePatch<T> value) patch,
     required TResult Function(_StoreInvalidPath<T> value) invalidPath,
@@ -861,6 +1082,7 @@ class _$_StoreInvalidPath<T> implements _StoreInvalidPath<T> {
   TResult? mapOrNull<TResult extends Object?>({
     TResult? Function(_StoreReset<T> value)? reset,
     TResult? Function(_StorePut<T> value)? put,
+    TResult? Function(_StoreArrayPut<T> value)? arrayPut,
     TResult? Function(_StoreDelete<T> value)? delete,
     TResult? Function(_StorePatch<T> value)? patch,
     TResult? Function(_StoreInvalidPath<T> value)? invalidPath,
@@ -873,6 +1095,7 @@ class _$_StoreInvalidPath<T> implements _StoreInvalidPath<T> {
   TResult maybeMap<TResult extends Object?>({
     TResult Function(_StoreReset<T> value)? reset,
     TResult Function(_StorePut<T> value)? put,
+    TResult Function(_StoreArrayPut<T> value)? arrayPut,
     TResult Function(_StoreDelete<T> value)? delete,
     TResult Function(_StorePatch<T> value)? patch,
     TResult Function(_StoreInvalidPath<T> value)? invalidPath,
